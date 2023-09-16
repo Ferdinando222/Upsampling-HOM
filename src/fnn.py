@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 
-class FNN(nn.Module):
+class PINN(nn.Module):
     def __init__(self, input_size, output_size,hidden_size):
-        super(FNN, self).__init__()
+        super(PINN, self).__init__()
         
         # Define the layers
         self.fc1 = nn.Linear(input_size, hidden_size)

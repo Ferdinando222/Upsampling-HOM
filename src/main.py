@@ -16,10 +16,10 @@ output_dim = 1
 hidden_size = 2
 epochs = 20000
 batch_size = 64
-numero_punti_da_campionare = 1202
+sampling_points = 1202
 
 #Prepare Data
-DRIR = io.read_SOFA_file("../Spherical-microphone-array-upsampling/dataset/DRIR_CR1_VSA_1202RS_R.sofa")
+DRIR = io.read_SOFA_file("../dataset/DRIR_CR1_VSA_1202RS_R.sofa")
 grid = DRIR.grid
 azimuth = grid.azimuth
 colatitude = grid.colatitude
@@ -33,7 +33,7 @@ output_data = np.fft.fft(DRIR.signal.signal)[:, 25]
 #Sampling points
 input_sampled = []
 output_sampled = []
-index_sampling = random.sample(range(len(input_data)), numero_punti_da_campionare)
+index_sampling = random.sample(range(len(input_data)), sampling_points)
 for index in index_sampling:
     input_sampled.append(input_data[index])
     output_sampled.append(output_data[index])
@@ -67,12 +67,12 @@ Y_data = torch.tensor(normalized_output_sampled,dtype=torch.complex32)
 
 #%%
 # Start Training
-for size in range(64):
+for size in range(10):
     print("Hidden_size:",hidden_size)
-    writer = SummaryWriter(f"runs/hidden_size_{hidden_size}")
-    writer_nmse = SummaryWriter("result/nmse-size")
+    writer = SummaryWriter(f"runs/hidden_size_{hidden_size}_{sampling_points}")
+    writer_nmse = SummaryWriter(f"result/nmse-size_{sampling_points}")
     model = fnn.PINN(input_dim, output_dim,hidden_size)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
     for epoch in range(epochs):
 
         predictions = model(X_data)
@@ -137,7 +137,11 @@ ax1.grid(True)
 
 plt.colorbar(sc1,label='Pressure')
 plt.colorbar(sc, label='Pressure')
+plt.savefig(f"../src/image/prev_{sampling_points}.png")  
+
 plt.show()
+# Save
+
 
 
 #TODO vari plot con tensorboard:

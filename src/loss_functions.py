@@ -29,7 +29,7 @@ class CombinedLoss(nn.Module):
 def NMSE(normalized_output,previsions):
     normalized_output = normalized_output.flatten()
     mse = np.sum(np.abs(normalized_output-previsions)**2)
-    normalization= np.sum(np.abs(normalized_output))
+    normalization= np.sum(np.abs(normalized_output)**2)
 
     nmse = mse/normalization
     nmse_db = 10 * math.log10(nmse)
