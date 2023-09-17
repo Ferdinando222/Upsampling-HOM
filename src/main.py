@@ -7,8 +7,7 @@ import torch.optim as optim
 import torch
 from torch.utils.tensorboard import SummaryWriter
 import loss_functions
-from sklearn.preprocessing import MinMaxScaler
-import random
+import data as dt
 # %%
 # Hyperparameters
 frequency = 1000
@@ -17,53 +16,21 @@ output_dim = 1
 hidden_size = 2
 epochs = 20000
 batch_size = 64
-sampling_points = 10
+points_sampled = 10
 
-#Prepare Data
-DRIR = io.read_SOFA_file("../dataset/DRIR_CR1_VSA_1202RS_R.sofa")
-grid = DRIR.grid
-azimuth = grid.azimuth
-colatitude = grid.colatitude
-radius = grid.radius
+# EXTRACT DATA
 
-index = int(np.ceil((frequency/DRIR.signal.fs)*len(DRIR.signal[0])))
-
-input_data = list(zip(azimuth, colatitude, radius))
-output_data = np.fft.fft(DRIR.signal.signal)[:, index]
+input_data,output_data,azimuth,colatitude = dt.extract_data(frequency)
 
 
-#Sampling points
-input_sampled = []
-output_sampled = []
-index_sampling = random.sample(range(len(input_data)), sampling_points)
-for index in index_sampling:
-    input_sampled.append(input_data[index])
-    output_sampled.append(output_data[index])
+# Sampling points
+input_sampled,output_sampled = dt.sampling_points(points_sampled)
 
-# Separate the real and imaginary parts
-real_part = np.real(output_data)
-imaginary_part = np.imag(output_data)
-real_part_sampled = np.real(output_sampled)
-imaginary_part_sampled = np.imag(output_sampled)
+# Normalization
+normalized_output_data,normalized_output_sampled = dt.normalize_data(output_sampled)
 
-real_scaler = MinMaxScaler()
-normalized_real_part = real_scaler.fit_transform(real_part.reshape(-1, 1))
-real_scaler_sampled = MinMaxScaler()
-normalized_real_part_sampled = real_scaler_sampled.fit_transform(real_part_sampled.reshape(-1, 1))
-
-imaginary_scaler = MinMaxScaler()
-normalized_imaginary_part = imaginary_scaler.fit_transform(imaginary_part.reshape(-1, 1))
-imaginary_scaler_sampled = MinMaxScaler()
-normalized_imaginary_part_sampled = imaginary_scaler_sampled.fit_transform(imaginary_part_sampled.reshape(-1, 1))
-
-# Combine the normalized real and imaginary parts
-normalized_output_data = normalized_real_part + 1j * normalized_imaginary_part
-normalized_output_sampled = normalized_real_part_sampled + 1j * normalized_imaginary_part_sampled
-# Prepare the input data as tensors
-X_data = torch.tensor(input_sampled, dtype=torch.float32)
-X_data_not_sampled = torch.tensor(input_data,dtype=torch.float32)
-
-Y_data = torch.tensor(normalized_output_sampled,dtype=torch.complex32)
+# Create Tensors
+X_data,X_data_not_sampled,Y_data = dt.create_tensors(input_sampled,normalized_output_sampled)
 
 
 
@@ -72,8 +39,8 @@ Y_data = torch.tensor(normalized_output_sampled,dtype=torch.complex32)
 # Start Training
 for size in range(10):
     print("Hidden_size:",hidden_size)
-    writer = SummaryWriter(f"runs_pde/hidden_size_{hidden_size}_{sampling_points}")
-    writer_nmse = SummaryWriter(f"result_pde/nmse-size_{sampling_points}")
+    writer = SummaryWriter(f"runs_pde/hidden_size_{hidden_size}_{points_sampled}")
+    writer_nmse = SummaryWriter(f"result_pde/nmse-size_{points_sampled}")
     model = fnn.PINN(input_dim, output_dim,hidden_size)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     for epoch in range(epochs):
@@ -140,7 +107,7 @@ ax1.grid(True)
 
 plt.colorbar(sc1,label='Pressure')
 plt.colorbar(sc, label='Pressure')
-plt.savefig(f"../src/image/prevPinn_{sampling_points}.png")  
+plt.savefig(f"../src/image/prevPinn_{points_sampled}.png")  
 
 plt.show()
 # Save
