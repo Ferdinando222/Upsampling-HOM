@@ -2,3 +2,6 @@
 result
 runs
 __pycache__
+image
+runs_pde
+result_pde
