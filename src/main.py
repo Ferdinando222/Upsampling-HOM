@@ -11,12 +11,13 @@ from sklearn.preprocessing import MinMaxScaler
 import random
 # %%
 # Hyperparameters
+frequency = 1000
 input_dim = 3 
 output_dim = 1 
 hidden_size = 2
 epochs = 20000
 batch_size = 64
-sampling_points = 1202
+sampling_points = 10
 
 #Prepare Data
 DRIR = io.read_SOFA_file("../dataset/DRIR_CR1_VSA_1202RS_R.sofa")
@@ -25,9 +26,10 @@ azimuth = grid.azimuth
 colatitude = grid.colatitude
 radius = grid.radius
 
+index = int(np.ceil((frequency/DRIR.signal.fs)*len(DRIR.signal[0])))
 
 input_data = list(zip(azimuth, colatitude, radius))
-output_data = np.fft.fft(DRIR.signal.signal)[:, 25]
+output_data = np.fft.fft(DRIR.signal.signal)[:, index]
 
 
 #Sampling points
@@ -59,6 +61,7 @@ normalized_output_data = normalized_real_part + 1j * normalized_imaginary_part
 normalized_output_sampled = normalized_real_part_sampled + 1j * normalized_imaginary_part_sampled
 # Prepare the input data as tensors
 X_data = torch.tensor(input_sampled, dtype=torch.float32)
+X_data_not_sampled = torch.tensor(input_data,dtype=torch.float32)
 
 Y_data = torch.tensor(normalized_output_sampled,dtype=torch.complex32)
 
@@ -69,16 +72,16 @@ Y_data = torch.tensor(normalized_output_sampled,dtype=torch.complex32)
 # Start Training
 for size in range(10):
     print("Hidden_size:",hidden_size)
-    writer = SummaryWriter(f"runs/hidden_size_{hidden_size}_{sampling_points}")
-    writer_nmse = SummaryWriter(f"result/nmse-size_{sampling_points}")
+    writer = SummaryWriter(f"runs_pde/hidden_size_{hidden_size}_{sampling_points}")
+    writer_nmse = SummaryWriter(f"result_pde/nmse-size_{sampling_points}")
     model = fnn.PINN(input_dim, output_dim,hidden_size)
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     for epoch in range(epochs):
 
         predictions = model(X_data)
 
-        loss = loss_functions.CombinedLoss(1,1)(
-            predictions,Y_data)
+        loss = loss_functions.CombinedLoss(1,1,frequency=frequency)(
+            predictions,Y_data,X_data_not_sampled)
         
         writer.add_scalar("Loss/train", loss, epoch)
         optimizer.zero_grad()
@@ -137,7 +140,7 @@ ax1.grid(True)
 
 plt.colorbar(sc1,label='Pressure')
 plt.colorbar(sc, label='Pressure')
-plt.savefig(f"../src/image/prev_{sampling_points}.png")  
+plt.savefig(f"../src/image/prevPinn_{sampling_points}.png")  
 
 plt.show()
 # Save
@@ -145,7 +148,5 @@ plt.show()
 
 
 #TODO vari plot con tensorboard:
-# 1) Cambiare numeri di microfoni
 # 2) Cambiare la frequenza
-# 3) come tracciare andamento nmse con tensorboard
 # %%
