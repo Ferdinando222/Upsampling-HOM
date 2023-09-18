@@ -1,4 +1,4 @@
-from sound_field_analysis import io
+from sound_field_analysis import io,utils
 import numpy as np
 import torch
 from sklearn.preprocessing import MinMaxScaler
@@ -15,12 +15,13 @@ def extract_data(frequency):
     azimuth = grid.azimuth
     colatitude = grid.colatitude
     radius = grid.radius
+    x,y,z = utils.sph2cart((azimuth,colatitude,radius))
     index = int(np.ceil((frequency/DRIR.signal.fs)*len(DRIR.signal[0])))
     global INPUT_DATA
     global OUTPUT_DATA
-    INPUT_DATA = list(zip(azimuth, colatitude, radius))
+    INPUT_DATA = list(zip(x, y, z))
     OUTPUT_DATA = np.fft.fft(DRIR.signal.signal)[:, index]
-    return INPUT_DATA,OUTPUT_DATA,azimuth,colatitude
+    return INPUT_DATA,OUTPUT_DATA,azimuth,colatitude,radius
 
 def sampling_points(points_sampled):
     #Sampling points
@@ -66,3 +67,10 @@ def create_tensors(input_sampled,normalized_output_sampled):
     Y_data = torch.tensor(normalized_output_sampled,dtype=torch.complex32)
 
     return X_data,X_data_not_sampled,Y_data
+
+
+def convert_cartesian(azimuth,colatitude,radius):
+    x,y,z = utils.sph2cart((azimuth,colatitude,radius))
+
+    return x,y,z
+    

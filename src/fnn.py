@@ -14,7 +14,8 @@ class PINN(nn.Module):
         # Define the activation function (tanh)
         self.activation = nn.Tanh()
     
-    def forward(self, x):
+    def forward(self, r,colatitude,azimuth):
+        x = torch.stack([r, colatitude, azimuth], dim=1)  # Concatenate the inputs along dimension 1
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
         x = self.activation(self.fc3(x))
