@@ -1,27 +1,29 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import math
+
 
 class DataTermLoss(nn.Module):
     def __init__(self):
         super(DataTermLoss, self).__init__()
 
     def forward(self, predictions, target):
-        mse = torch.mean(torch.abs(predictions - target) ** 2)
-        return mse
+            
+            # Combina le due loss in una loss complessa
+            loss = torch.mean(torch.abs(target-predictions)**2)
+            return loss
 
 class HelmholtzLoss(nn.Module):
-    def __init__(self, c, frequency):
+    def __init__(self, c, omega):
         super(HelmholtzLoss, self).__init__()
         self.c = c
-        self.omega = 2 * np.pi * frequency
+        self.omega = omega
 
     def forward(self,inputs,model_estimation):
         inputs = inputs.requires_grad_(True)
-        x= inputs[:,2].requires_grad_(True)
-        y = inputs[:,1].requires_grad_(True)
-        z = inputs[:,0].requires_grad_(True)
+        x= inputs[:,0]
+        y = inputs[:,1]
+        z = inputs[:,2]
 
         u = model_estimation(x,y,z)
         d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
@@ -51,38 +53,47 @@ class HelmholtzLoss(nn.Module):
 
         return mse_pde_loss
     
-    def laplace(fx: torch.Tensor,x:torch.Tensor):
-        dfx = torch.autograd(fx,x,create_graph=True)[0]
-        ddfx = []
         
     
 
 class CombinedLoss(nn.Module):
-    def __init__(self, data_weight=1.0, pde_weight=1.0,frequency=1000):
+    def __init__(self, data_weight=1.0,frequency=1000,pinn=False):
         super(CombinedLoss, self).__init__()
+        self.pinn = pinn
         self.data_weight = data_weight
-        self.pde_weight = pde_weight
+        self.omega = 2 * np.pi * frequency
+        if pinn:
+            self.pde_weight = 1
+            self.pde_loss_fn = HelmholtzLoss(c=340,omega=self.omega)
+
         self.data_loss_fn = DataTermLoss()
-        self.pde_loss_fn = HelmholtzLoss(c=340,frequency=frequency)
 
 
     def forward(self, predictions, target,inputs,model_estimation):
         # Calculate individual loss terms
         data_loss = self.data_loss_fn(predictions, target)
-        pde_loss = self.pde_loss_fn(inputs,model_estimation)
 
-        loss = self.data_weight*data_loss + self.pde_weight*pde_loss
+        if self.pinn:
+            pde_loss = self.pde_loss_fn(inputs,model_estimation)
+            loss = self.data_weight*data_loss + self.pde_weight*pde_loss
+        else:
+            loss = self.data_weight*data_loss
         return loss
     
 
     
 def NMSE(normalized_output,previsions):
-    normalized_output = normalized_output.flatten()
-    mse = np.sum(np.abs(normalized_output-previsions)**2)
-    normalization= np.sum(np.abs(normalized_output)**2)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    normalized_output = normalized_output.to(device)
+    previsions = previsions.to(device)
+    print(normalized_output)
+    print(previsions)
 
-    nmse = mse/normalization
-    nmse_db = 10 * math.log10(nmse)
-    return nmse_db
+    mse = torch.sum(torch.abs(normalized_output - previsions) ** 2)
+    print(mse)
+    nmse = mse / torch.sum(torch.abs(normalized_output) ** 2)
+    nmse_db = 10 * torch.log10(nmse)
+    print(nmse_db)
+    return nmse_db.item()
 
 

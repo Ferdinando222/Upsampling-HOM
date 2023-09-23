@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_model(azimuth,colatitude,normalized_output_data,previsions,points_sampled):
+def plot_model(azimuth,colatitude,normalized_output_data,previsions,points_sampled,pinn=False):
     # Crea un grafico 2D della pressione in funzione di azimuth e colatitude
     fig, (ax,ax1) = plt.subplots(1, 2, figsize=(12, 5))
     sc = ax.scatter(azimuth, colatitude, c=np.abs(previsions), cmap='viridis')
@@ -34,6 +34,10 @@ def plot_model(azimuth,colatitude,normalized_output_data,previsions,points_sampl
 
     plt.colorbar(sc1,label='Pressure')
     plt.colorbar(sc, label='Pressure')
-    plt.savefig(f"../src/image/prevPinn_{points_sampled}.png")  
+
+    if pinn:
+        plt.savefig(f"../src/image/Pinn_{points_sampled}.png")
+    else:
+        plt.savefig(f"../src/image/NoPinn_{points_sampled}.png")
 
     plt.show()

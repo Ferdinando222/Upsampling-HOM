@@ -1,8 +1,10 @@
 .venv
 .idea
-result
+result_no_pinn
+runs_no_pinn
 runs
 __pycache__
 image
 runs_pde
 result_pde
+wandb

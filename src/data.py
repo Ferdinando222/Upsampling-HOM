@@ -2,16 +2,12 @@ from sound_field_analysis import io,utils
 import numpy as np
 import torch
 from sklearn.preprocessing import MinMaxScaler
-import random
 
 class DataHandler:
-    def __init__(self, sofa_file_path,frequency,points_sampled):
+    def __init__(self, sofa_file_path,frequency):
         #INPUT AND OUTPUT DATA
         self.INPUT_DATA = None
         self.OUTPUT_DATA = None
-        #SAMPLING INPUT AND OUTPUT DATA
-        self.OUTPUT_SAMPLED = None
-        self.INPUT_SAMPLED = None
         #NORAMALIZE OUTPUT DATA
         self.NOMRALIZED_OUTPUT_DATA = None
         self.NORMALIZED_OUTPUT_SAMPLED = None
@@ -24,7 +20,8 @@ class DataHandler:
         self.radius = None
 
         self.extract_data(frequency,sofa_file_path)
-        self.sampling_points(points_sampled)
+        self.INPUT_SAMPLED = self.INPUT_DATA
+        self.OUTPUT_SAMPLED= self.OUTPUT_DATA
         self.normalize_data()
 
 
@@ -38,11 +35,6 @@ class DataHandler:
         self.radius = grid.radius
         self.x, self.y, self.z = utils.sph2cart((self.azimuth, self.colatitude, self.radius))
         self.INPUT_DATA = list(zip(self.x, self.y, self.z))
-
-    def sampling_points(self, points_sampled):
-        index_sampling = random.sample(range(len(self.INPUT_DATA)), points_sampled)
-        self.INPUT_SAMPLED= [self.INPUT_DATA[index] for index in index_sampling]
-        self.OUTPUT_SAMPLED = [self.OUTPUT_DATA[index] for index in index_sampling]
         
 
     def normalize_data(self):
@@ -66,8 +58,21 @@ class DataHandler:
     def create_tensors(self):
         X_data = torch.tensor(self.INPUT_SAMPLED, dtype=torch.float32)
         X_data_not_sampled = torch.tensor(self.INPUT_DATA,dtype=torch.float32)
-        Y_data = torch.tensor(self.NORMALIZED_OUTPUT_SAMPLED, dtype=torch.complex32)
+        Y_data = torch.tensor(self.NORMALIZED_OUTPUT_SAMPLED, dtype=torch.cfloat)
         return X_data,X_data_not_sampled, Y_data
+    
+
+    def remove_points(self, points_sampled):
+        
+        index = int(np.floor(len(self.INPUT_SAMPLED) // points_sampled))
+        
+        # Mantieni solo ogni index-esimo punto partendo dall'indice 0
+        self.INPUT_SAMPLED = self.INPUT_SAMPLED[::index]
+        self.OUTPUT_SAMPLED = self.OUTPUT_SAMPLED[::index]
+        
+        # Ora hai mantenuto il numero desiderato di punti
+        self.normalize_data()
+
 
     @staticmethod
     def convert_cartesian(azimuth, colatitude, radius):
