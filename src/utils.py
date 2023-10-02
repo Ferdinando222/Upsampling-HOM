@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import wandb
 
 def plot_model(azimuth,colatitude,normalized_output_data,previsions,points_sampled,pinn=False):
     # Crea un grafico 2D della pressione in funzione di azimuth e colatitude

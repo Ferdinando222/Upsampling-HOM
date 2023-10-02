@@ -2,6 +2,7 @@ from sound_field_analysis import io,utils
 import numpy as np
 import torch
 from sklearn.preprocessing import MinMaxScaler
+from torch.utils.data import DataLoader
 
 class DataHandler:
     def __init__(self, sofa_file_path,frequency):
@@ -9,7 +10,7 @@ class DataHandler:
         self.INPUT_DATA = None
         self.OUTPUT_DATA = None
         #NORAMALIZE OUTPUT DATA
-        self.NOMRALIZED_OUTPUT_DATA = None
+        self.NORMALIZED_OUTPUT_DATA = None
         self.NORMALIZED_OUTPUT_SAMPLED = None
         #EXTRACT POINTS IN SPHERICAL AND CARTESIAN COORDINATES
         self.x = None 
@@ -18,11 +19,15 @@ class DataHandler:
         self.azimuth = None
         self.colatitude = None
         self.radius = None
+        self.X_data = None
+        self.X_data_not_sampled = None
+        self.Y_data = None
 
         self.extract_data(frequency,sofa_file_path)
         self.INPUT_SAMPLED = self.INPUT_DATA
         self.OUTPUT_SAMPLED= self.OUTPUT_DATA
         self.normalize_data()
+        self.create_tensors()
 
 
     def extract_data(self, frequency,sofa_file_path):
@@ -56,10 +61,10 @@ class DataHandler:
 
 
     def create_tensors(self):
-        X_data = torch.tensor(self.INPUT_SAMPLED, dtype=torch.float32)
-        X_data_not_sampled = torch.tensor(self.INPUT_DATA,dtype=torch.float32)
-        Y_data = torch.tensor(self.NORMALIZED_OUTPUT_SAMPLED, dtype=torch.cfloat)
-        return X_data,X_data_not_sampled, Y_data
+        self.X_data = torch.tensor(self.INPUT_SAMPLED, dtype=torch.float32)
+        self.X_data_not_sampled = torch.tensor(self.INPUT_DATA,dtype=torch.float32)
+        self.Y_data = torch.tensor(self.NORMALIZED_OUTPUT_SAMPLED, dtype=torch.cfloat)
+        return self.X_data,self.X_data_not_sampled, self.Y_data
     
 
     def remove_points(self, points_sampled):
@@ -72,9 +77,11 @@ class DataHandler:
         
         # Ora hai mantenuto il numero desiderato di punti
         self.normalize_data()
+        self.create_tensors()
+
+    def data_loader(self,batch_size=32):
+        dataset_sampled = list(zip(self.X_data,self.Y_data))
+        train_dataloader = DataLoader(dataset_sampled, batch_size=batch_size, shuffle=True)
+        return train_dataloader
 
 
-    @staticmethod
-    def convert_cartesian(azimuth, colatitude, radius):
-        x, y, z = utils.sph2cart((azimuth, colatitude, radius))
-        return x, y, z
