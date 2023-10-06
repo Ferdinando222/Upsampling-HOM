@@ -1,97 +1,160 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import wandb
+import global_variables as gb
 
+# Import necessary libraries and modules
 
 class DataTermLoss(nn.Module):
+    """
+    Custom loss module for data term loss calculation.
+
+    This module calculates the mean squared error (MSE) loss between predictions and target values.
+    """
+
     def __init__(self):
         super(DataTermLoss, self).__init__()
 
     def forward(self, predictions, target):
-            
-            # Combina le due loss in una loss complessa
-            loss = torch.mean(torch.abs(target-predictions)**2)
-            return loss
+        """
+        Forward pass of the DataTermLoss module.
+
+        Args:
+            predictions (torch.Tensor): Predicted values.
+            target (torch.Tensor): Target values.
+
+        Returns:
+            loss (torch.Tensor): The calculated loss.
+        """
+        # Calculate the MSE loss
+        loss = torch.mean(torch.abs(target - predictions) ** 2)
+        return loss
+
 
 class HelmholtzLoss(nn.Module):
+    """
+    Custom loss module for Helmholtz equation loss calculation.
+
+    This module calculates the mean squared error (MSE) loss for solving the Helmholtz equation.
+    """
+
     def __init__(self, c, omega):
         super(HelmholtzLoss, self).__init__()
         self.c = c
         self.omega = omega
 
     def forward(self, inputs, model_estimation):
-        x = inputs[:, 0]
-        y = inputs[:, 1]
-        z = inputs[:, 2]
+        """
+        Forward pass of the HelmholtzLoss module.
+
+        Args:
+            inputs (torch.Tensor): Input coordinates.
+            model_estimation (callable): A callable model function for estimating u.
+
+        Returns:
+            mse_pde_loss (torch.Tensor): The calculated loss for the Helmholtz equation.
+        """
+
+        x = inputs[:, 0].to(gb.device)
+        y = inputs[:, 1].to(gb.device)
+        z = inputs[:, 2].to(gb.device)
+
         x = x.requires_grad_(True)
         y = y.requires_grad_(True)
         z = z.requires_grad_(True)
 
         u = model_estimation(x, y, z)
-        
-        # Calcola le derivate parziali di u rispetto a x, y e z
+
+        # Calculate partial derivatives of u with respect to x, y, and z
         d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
         d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
         d_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
 
-        # Calcola il laplaciano di u
+        # Calculate the Laplacian of u
         laplace_u = torch.autograd.grad(d_x.sum(), x, create_graph=True)[0] + \
                     torch.autograd.grad(d_y.sum(), y, create_graph=True)[0] + \
                     torch.autograd.grad(d_z.sum(), z, create_graph=True)[0]
 
-        # Calcola il residuo dell'equazione di Helmholtz
+        # Calculate the residual of the Helmholtz equation
         pde_residual = laplace_u + (self.c / self.omega) ** 2 * u
 
-        # Calcola la perdita MSE del residuo dell'equazione di Helmholtz
-        mse_pde_loss = torch.mean(torch.abs(pde_residual)**2)
+        # Calculate the MSE loss of the Helmholtz equation residual
+        mse_pde_loss = torch.mean(torch.abs(pde_residual) ** 2)
 
         return mse_pde_loss
-        
-    
+
+    import numpy as np
+
+
+
 
 class CombinedLoss(nn.Module):
-    def __init__(self, data_weight=1.0,pde_weight=1.0,frequency=1000,pinn=False):
+    """
+    Combined loss module for both data term and Helmholtz equation term losses.
+
+    This module calculates a combined loss that consists of a data term loss and a Helmholtz equation term loss.
+    """
+
+    def __init__(self, data_weight=1.0, pde_weight=1.0, pinn=False):
         super(CombinedLoss, self).__init__()
         self.pinn = pinn
         self.data_weight = data_weight
         self.pde_weight = pde_weight
-        self.omega = 2 * np.pi * frequency
+        self.omega = 2 * np.pi * gb.frequency
         if pinn:
-            self.pde_loss_fn = HelmholtzLoss(c=340,omega=self.omega)
+            self.pde_loss_fn = HelmholtzLoss(c=340, omega=self.omega)
 
         self.data_loss_fn = DataTermLoss()
 
+    def forward(self, predictions, target, inputs, model_estimation):
+        """
+        Forward pass of the CombinedLoss module.
 
-    def forward(self, predictions, target,inputs,model_estimation):
+        Args:
+            predictions (torch.Tensor): Predicted values.
+            target (torch.Tensor): Target values.
+            inputs (torch.Tensor): Input coordinates.
+            model_estimation (callable): A callable model function for estimating u.
+
+        Returns:
+            loss (torch.Tensor): The combined loss.
+            loss_data (torch.Tensor): The data term loss.
+            loss_pde (torch.Tensor): The Helmholtz equation term loss (if applicable).
+        """
         # Calculate individual loss terms
         data_loss = self.data_loss_fn(predictions, target)
         loss_pde = 0
         if self.pinn:
-            pde_loss = self.pde_loss_fn(inputs,model_estimation)
-            loss = self.data_weight*data_loss
-            loss_pde = self.pde_weight*pde_loss
-        
-        loss_data = self.data_weight*data_loss
-        
-        loss = loss_pde+loss_data
+            pde_loss = self.pde_loss_fn(inputs, model_estimation)
+            loss_pde = self.pde_weight * pde_loss
 
-        return loss,loss_data,loss_pde
-    
+        loss_data = self.data_weight * data_loss
 
-    
-def NMSE(normalized_output,previsions):
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    normalized_output = normalized_output.to(device)
-    previsions = previsions.to(device)
-    print(normalized_output)
-    print(previsions)
+        # Calculate the combined loss
+        loss = loss_pde + loss_data
 
-    mse = torch.sum(torch.abs(normalized_output - previsions) ** 2)
-    print(mse)
+        return loss, loss_data, loss_pde
+
+
+def NMSE(normalized_output, predictions):
+    """
+    Calculate the Normalized Mean Squared Error (NMSE) in decibels (dB) between two tensors.
+
+    Args:
+        normalized_output (torch.Tensor): The normalized output.
+        predictions (torch.Tensor): The predicted values.
+
+    Returns:
+        nmse_db (float): The NMSE in decibels (dB).
+    """
+    normalized_output = normalized_output.to(gb.device)
+    predictions = predictions.to(gb.device)
+
+    # Calculate Mean Squared Error (MSE)
+    mse = torch.sum(torch.abs(normalized_output - predictions) ** 2)
+
+    # Calculate NMSE in dB
     nmse = mse / torch.sum(torch.abs(normalized_output) ** 2)
     nmse_db = 10 * torch.log10(nmse)
-    print(nmse_db)
+
     return nmse_db.item()
-
-
