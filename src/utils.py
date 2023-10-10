@@ -65,7 +65,7 @@ def plot_model(data,previsions,points_sampled,pinn=False):
     
     cbar2 = plt.colorbar(sc2, label='Pressure Difference', ax=ax2)
     cbar2.set_ticks([-1,-0.5,0,0.5, 1])
-    cbar2.set_ticklabels(['-1','-o.5','0', '0.5', '1'])
+    cbar2.set_ticklabels(['-1','-0.5','0', '0.5', '1'])
 
     frequency_label = f"Frequenza: {gb.frequency} Hz"
     ax.text(1, 0, frequency_label, transform=ax.transAxes, ha='right', va='bottom', color='black', fontsize=12)

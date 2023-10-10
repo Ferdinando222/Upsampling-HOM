@@ -26,7 +26,7 @@ sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-nopinn-{g
 
 #TODO: 
 # 1)TRAINING IN DIFFERENT AMBIENT
-# 2) Try to implement loss with boundary condition
+# 2) Add frequency to the domain
 #%%
 
 def train():
@@ -58,8 +58,6 @@ def train():
         
         #TRAINING
         
-        
-
         pinn=False
         if pinn:
             print("Start Training PINN")

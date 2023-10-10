@@ -87,10 +87,26 @@ class HelmholtzLoss(nn.Module):
 
 class BCLoss(nn.Module):
 
+    """
+    Custom loss module for boundary condition (BC) loss calculation.
+
+    """
+
     def __init__(self):
         super(BCLoss, self).__init__()
 
     def forward(self,inputs,model_estimation):
+        
+        """
+        Forward pass of the BCLoss module.
+
+        Args:
+            inputs (torch.Tensor): Input coordinates.
+            model_estimation (callable): A callable model function for estimating u.
+
+        Returns:
+            mse_bc (torch.Tensor): The calculated boundary condition loss.
+        """
 
         x = inputs[:, 0].to(gb.device)
         y = inputs[:, 1].to(gb.device)
