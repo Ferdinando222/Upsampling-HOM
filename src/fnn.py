@@ -62,7 +62,7 @@ class PINN(nn.Module):
 
         return out
 
-    def train_epoch(self, loader, inputs_not_sampled, optimizer, data_weights, pde_weights, points_sampled, pinn=False):
+    def train_epoch(self, loader, inputs_not_sampled, optimizer, data_weights, pde_weights,bc_weights, points_sampled, pinn=False):
         """
         Train the PINN model for one epoch.
 
@@ -86,6 +86,7 @@ class PINN(nn.Module):
 
         cum_loss_data = []
         cum_loss_pde = []
+        cum_loss_bc = []
         cum_loss = []
 
         for _, (data, target) in enumerate(loader):
@@ -96,11 +97,12 @@ class PINN(nn.Module):
 
             optimizer.zero_grad()
             predictions = self(x, y, z)
-            loss, loss_data, loss_pde = loss_functions.CombinedLoss(data_weights, pde_weights, pinn)(predictions, target,
+            loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(data_weights, pde_weights,bc_weights, pinn)(predictions, target,
                                                                                                        inputs_not_sampled,self)
 
             cum_loss_data.append(loss_data)
             cum_loss_pde.append(loss_pde)
+            cum_loss_bc.append(loss_bc)
             cum_loss.append(loss)
 
             loss.backward()
@@ -115,8 +117,9 @@ class PINN(nn.Module):
         # Calculate the mean of other losses
         mean_loss_data = torch.mean(torch.tensor(cum_loss_data, dtype=torch.float32))
         mean_loss_pde = torch.mean(torch.tensor(cum_loss_pde, dtype=torch.float32))
+        mean_loss_bc = torch.mean(torch.tensor(cum_loss_bc, dtype=torch.float32))
 
-        return mean_loss, mean_loss_data, mean_loss_pde
+        return mean_loss, mean_loss_data, mean_loss_pde,mean_loss_bc
     
     def test_epoch(self, val_loader):
         batch_losses = []

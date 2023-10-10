@@ -38,7 +38,8 @@ def train():
         batch_size = wandb.config.batch_size
         learning_rate = wandb.config.learning_rate
         data_weights = 1
-        pde_weights = 10
+        pde_weights = 0.0008
+        bc_weights=0.08
 
         #CREATE DATASET
         path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
@@ -73,7 +74,7 @@ def train():
         counter = 0
         
         for epoch in range(epochs):
-            loss,loss_data,loss_pde = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,data_weights,pde_weights,points_sampled,pinn=pinn)
+            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,data_weights,pde_weights,points_sampled,pinn=pinn)
             val_loss = model.test_epoch(val_dataset)
 
             wandb.log({
@@ -81,6 +82,7 @@ def train():
                 "loss":loss,
                 "loss_data":loss_data,
                 "loss_pde":loss_pde,
+                "loss_bc":loss_bc,
                 "val_loss":val_loss
             }
             )

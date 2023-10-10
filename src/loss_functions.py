@@ -85,24 +85,54 @@ class HelmholtzLoss(nn.Module):
 
     import numpy as np
 
+class BCLoss(nn.Module):
 
+    def __init__(self):
+        super(BCLoss, self).__init__()
+
+    def forward(self,inputs,model_estimation):
+
+        x = inputs[:, 0].to(gb.device)
+        y = inputs[:, 1].to(gb.device)
+        z = inputs[:, 2].to(gb.device)
+
+        x = x.requires_grad_(True)
+        y = y.requires_grad_(True)
+        z = z.requires_grad_(True)
+
+        u = model_estimation(x, y, z)
+
+        d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
+        d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
+        d_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
+
+        coordinates = torch.stack((x, y, z), dim=1)
+        derivatives = torch.transpose(torch.stack((d_x, d_y, d_z), dim=1),0,1)
+
+        bc_residual = torch.matmul(coordinates, derivatives)
+        mse_bc = torch.mean(torch.abs(bc_residual) ** 2)
+
+        return mse_bc
 
 
 class CombinedLoss(nn.Module):
+    
     """
     Combined loss module for both data term and Helmholtz equation term losses.
 
     This module calculates a combined loss that consists of a data term loss and a Helmholtz equation term loss.
     """
 
-    def __init__(self, data_weight=1.0, pde_weight=1.0, pinn=False):
+    def __init__(self, data_weight=1.0, pde_weight=1.0,bc_weight=1.0, pinn=False):
         super(CombinedLoss, self).__init__()
         self.pinn = pinn
+        self.bc_weight = bc_weight
         self.data_weight = data_weight
         self.pde_weight = pde_weight
         self.omega = 2 * np.pi * gb.frequency
         if pinn:
             self.pde_loss_fn = HelmholtzLoss(c=340, omega=self.omega)
+            self.bc_loss_fn = BCLoss()
 
         self.data_loss_fn = DataTermLoss()
 
@@ -126,14 +156,16 @@ class CombinedLoss(nn.Module):
         loss_pde = 0
         if self.pinn:
             pde_loss = self.pde_loss_fn(inputs, model_estimation)
+            bc_loss = self.bc_loss_fn(inputs,model_estimation)
             loss_pde = self.pde_weight * pde_loss
+            loss_bc = self.bc_weight *bc_loss
 
-        loss_data = self.data_weight * data_loss
+        loss_data = self.data_weight * data_loss 
 
         # Calculate the combined loss
-        loss = loss_pde + loss_data
+        loss = loss_pde + loss_data + loss_bc
 
-        return loss, loss_data, loss_pde
+        return loss, loss_data, loss_pde,loss_bc
 
 
 def NMSE(normalized_output, predictions):
