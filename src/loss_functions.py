@@ -55,15 +55,17 @@ class HelmholtzLoss(nn.Module):
             mse_pde_loss (torch.Tensor): The calculated loss for the Helmholtz equation.
         """
 
-        x = inputs[:, 0].to(gb.device)
-        y = inputs[:, 1].to(gb.device)
-        z = inputs[:, 2].to(gb.device)
+        x = inputs[:,:,0].to(gb.device)
+        y = inputs[:,:,1].to(gb.device)
+        z = inputs[:,:,2].to(gb.device)
+        f = inputs[:,:,3].to(gb.device)
 
         x = x.requires_grad_(True)
         y = y.requires_grad_(True)
         z = z.requires_grad_(True)
 
-        u = model_estimation(x, y, z)
+
+        u = model_estimation(x, y, z,f)
 
         # Calculate partial derivatives of u with respect to x, y, and z
         d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
@@ -108,15 +110,16 @@ class BCLoss(nn.Module):
             mse_bc (torch.Tensor): The calculated boundary condition loss.
         """
 
-        x = inputs[:, 0].to(gb.device)
-        y = inputs[:, 1].to(gb.device)
-        z = inputs[:, 2].to(gb.device)
+        x = inputs[:,:,0].to(gb.device)
+        y = inputs[:,:,1].to(gb.device)
+        z = inputs[:,:,2].to(gb.device)
+        f = inputs[:,:,3].to(gb.device)
 
         x = x.requires_grad_(True)
         y = y.requires_grad_(True)
         z = z.requires_grad_(True)
 
-        u = model_estimation(x, y, z)
+        u = model_estimation(x, y, z,f)
 
         d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
         d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
@@ -170,6 +173,7 @@ class CombinedLoss(nn.Module):
         # Calculate individual loss terms
         data_loss = self.data_loss_fn(predictions, target)
         loss_pde = 0
+        loss_bc = 0
         if self.pinn:
             pde_loss = self.pde_loss_fn(inputs, model_estimation)
             bc_loss = self.bc_loss_fn(inputs,model_estimation)

@@ -22,7 +22,7 @@ sweep_configuration = {
 }
 
 # Initialize sweep by passing in config.
-sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-nopinn-{gb.points_sampled}-{gb.frequency}")
+sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-prova-{gb.points_sampled}-{gb.frequency}")
 
 #TODO: 
 # 1)TRAINING IN DIFFERENT AMBIENT
@@ -72,7 +72,7 @@ def train():
         counter = 0
         
         for epoch in range(epochs):
-            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,data_weights,pde_weights,points_sampled,pinn=pinn)
+            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,data_weights,pde_weights,bc_weights,points_sampled,pinn=pinn)
             val_loss = model.test_epoch(val_dataset)
 
             wandb.log({
@@ -108,11 +108,11 @@ def train():
     print(nmse)
 
     # plot and NMSE of the model
-    input_data = data_handler.X_data
-    input_data = input_data.to(gb.device)
-    previsions_pinn = model.make_previsions(input_data)
-    previsions_pinn = previsions_pinn.cpu().detach().numpy()
-    utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn)
+    # input_data = data_handler.X_data
+    # input_data = input_data.to(gb.device)
+    # previsions_pinn = model.make_previsions(input_data)
+    # previsions_pinn = previsions_pinn.cpu().detach().numpy()
+    # utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn)
     print('FINISHED')
 
 if __name__=="__main__":

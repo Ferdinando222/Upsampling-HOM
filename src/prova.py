@@ -1,31 +1,60 @@
 #%%
-from sound_field_analysis import io, utils, gen
-import numpy as np
-import torch
-from sklearn.preprocessing import MinMaxScaler
-from torch.utils.data import DataLoader
+import data as dt
 import global_variables as gb
-
+import fnn
+import torch.optim as optim
 
 path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
-DRIR = io.read_SOFA_file(path_data)
-grid = DRIR.grid
+data_handler = dt.DataHandler(path_data,gb.frequency)
+points_sampled =14
+data_handler.remove_points(2)
+train_dataset,val_dataset = data_handler.data_loader(32)
+
+#%%
+
+points = data_handler.INPUT_DATA
+
+
 # %%
-# Calculate the index based on the given frequency
+ #CREATE_NETWORK
+model = fnn.PINN(gb.input_dim,gb.output_dim,22)
+model = model.to(gb.device)
+#CREATE OPTIMIZER
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+inputs_not_sampled= data_handler.X_data
 
-# Extract the output data (FFT at the specified index)
-OUTPUT_DATA = np.fft.fft(DRIR.signal.signal)
-n = len(OUTPUT_DATA[0])
-frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)
-frequencies = frequencies[:n//2]
-OUTPUT_DATA = OUTPUT_DATA[:n//2]
+pinn=False
+
+best_val_loss = float('inf')
+patience = 10
+counter = 0
+        
+for epoch in range(10000):
+    loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,1,0.00008,0.8,points_sampled,pinn=pinn)
+    val_loss = model.test_epoch(val_dataset)
+
+    if epoch % 50 == 0:
+        print(f'Epoch [{epoch}/{10000}], Loss: {loss.item()},Val_Loss:{val_loss.item()}')
+
+        # Check for early stopping criterion
 
 
-# Extract spherical coordinates
-azimuth = grid.azimuth
-colatitude = grid.colatitude
-radius = grid.radius
-# Convert spherical coordinates to Cartesian coordinates
-x, y, z = utils.sph2cart((azimuth, colatitude,radius))
-INPUT_DATA = np.array(zip(x, y, z))
+
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        counter = 0
+    else:
+        counter += 1
+        if(counter== 5):
+            learning_rate = 0.001/10
+            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+            print(f"Decrease learning rate {learning_rate} epochs.")
+                  
+    if counter >= patience:
+        print(f"Early stopping after {epoch + 1} epochs.")
+        break
+
+        
+nmse = model.test(data_handler)
+        
 # %%

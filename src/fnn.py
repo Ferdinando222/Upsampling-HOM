@@ -37,7 +37,7 @@ class PINN(nn.Module):
         self.activation = nn.Tanh()
         self.hidden_size = hidden_size
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z,f):
         """
         Forward pass of the PINN model.
 
@@ -49,7 +49,7 @@ class PINN(nn.Module):
         Returns:
             out (torch.Tensor): Complex-valued output.
         """
-        x = torch.stack([x, y, z], dim=1).to(gb.device)  # Concatenate the inputs along dimension 1
+        x = torch.stack([x, y, z,f], dim=1).to(gb.device)  # Concatenate the inputs along dimension 1
 
         # Forward pass for the real part
         x = self.activation(self.fc1(x))
@@ -89,14 +89,15 @@ class PINN(nn.Module):
         cum_loss_bc = []
         cum_loss = []
 
-        for _, (data, target) in enumerate(loader):
-            x = data[:, 0].to(gb.device)
-            y = data[:, 1].to(gb.device)
-            z = data[:, 2].to(gb.device)
+        for i, (data, target) in enumerate(loader):
+            x = data[:,i,0].to(gb.device)
+            y = data[:,i,1].to(gb.device)
+            z = data[:,i,2].to(gb.device)
+            f = data[:,i,3].to(gb.device)
             target = target.to(gb.device)
 
             optimizer.zero_grad()
-            predictions = self(x, y, z)
+            predictions = self(x, y, z,f)
             loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(data_weights, pde_weights,bc_weights, pinn)(predictions, target,
                                                                                                        inputs_not_sampled,self)
 
@@ -125,13 +126,14 @@ class PINN(nn.Module):
         batch_losses = []
         self.eval()
         with torch.no_grad():
-            for _, (data, targets) in enumerate(val_loader):
+            for i, (data, targets) in enumerate(val_loader):
 
-                x = data[:, 0].to(gb.device)
-                y = data[:, 1].to(gb.device)
-                z = data[:, 2].to(gb.device)
+                x = data[:,i,0].to(gb.device)
+                y = data[:,i,1].to(gb.device)
+                z = data[:,i,2].to(gb.device)
+                f = data[:,i,3].to(gb.device)
                 targets = targets.to(gb.device)
-                predictions = self(x,y,z)
+                predictions = self(x,y,z,f)
 
                 loss= loss_functions.DataTermLoss()(predictions,targets)
                 batch_losses.append(loss)
@@ -174,8 +176,11 @@ class PINN(nn.Module):
             previsions (torch.Tensor): Model predictions.
         """
         previsions = []
-        x = input_data[:, 0].to(gb.device)
-        y = input_data[:, 1].to(gb.device)
-        z = input_data[:, 2].to(gb.device)
-        previsions = self(x, y, z)
+        for i in range(1202):
+            x = input_data[:,i,0].to(gb.device)
+            y = input_data[:,i,1].to(gb.device)
+            z = input_data[:,i,2].to(gb.device)
+            f = input_data[:,i,3].to(gb.device)
+            prev = self(x,y,z,f)
+            previsions.append(prev)
         return previsions
