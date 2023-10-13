@@ -22,7 +22,7 @@ sweep_configuration = {
 }
 
 # Initialize sweep by passing in config.
-sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-nopinn-{gb.points_sampled}-{gb.frequency}")
+sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-nopinn-{gb.points_sampled}-{gb.frequency}_LBS")
 
 #TODO: 
 # 1)TRAINING IN DIFFERENT AMBIENT
@@ -38,11 +38,11 @@ def train():
         batch_size = wandb.config.batch_size
         learning_rate = wandb.config.learning_rate
         data_weights = 1
-        pde_weights = 0.0008
-        bc_weights=0.08
+        pde_weights = 10
+        bc_weights=0
 
         #CREATE DATASET
-        path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
+        path_data = "../dataset/DRIR_LBS_VSA_1202RS_PAL.sofa"
         data_handler = dt.DataHandler(path_data,gb.frequency)
         points_sampled =14
         data_handler.remove_points(2)
@@ -74,7 +74,7 @@ def train():
         counter = 0
         
         for epoch in range(epochs):
-            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,data_weights,pde_weights,points_sampled,pinn=pinn)
+            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,data_weights,pde_weights,bc_weights,points_sampled,pinn=pinn)
             val_loss = model.test_epoch(val_dataset)
 
             wandb.log({
