@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import torch.nn as nn
 import global_variables as gb
 import loss_functions
@@ -90,24 +91,25 @@ class PINN(nn.Module):
         cum_loss = []
 
         for i, (data, target) in enumerate(loader):
-            x = data[:,i,0].to(gb.device)
-            y = data[:,i,1].to(gb.device)
-            z = data[:,i,2].to(gb.device)
-            f = data[:,i,3].to(gb.device)
-            target = target.to(gb.device)
+            for j in range(100):
+                x = data[:,j,0].to(gb.device)
+                y = data[:,j,1].to(gb.device)
+                z = data[:,j,2].to(gb.device)
+                f = data[:,j,3].to(gb.device)
+                targets = target[:,1000+j].to(gb.device)
 
-            optimizer.zero_grad()
-            predictions = self(x, y, z,f)
-            loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(data_weights, pde_weights,bc_weights, pinn)(predictions, target,
+                optimizer.zero_grad()
+                predictions = self(x, y, z,f)
+                loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(data_weights, pde_weights,bc_weights, pinn)(predictions, targets,
                                                                                                        inputs_not_sampled,self)
 
-            cum_loss_data.append(loss_data)
-            cum_loss_pde.append(loss_pde)
-            cum_loss_bc.append(loss_bc)
-            cum_loss.append(loss)
+                cum_loss_data.append(loss_data)
+                cum_loss_pde.append(loss_pde)
+                cum_loss_bc.append(loss_bc)
+                cum_loss.append(loss)
 
-            loss.backward()
-            optimizer.step()
+                loss.backward()
+                optimizer.step()
 
         # Convert cum_loss to a tensor
         cum_loss_tensor = torch.tensor(cum_loss, dtype=torch.float32)
@@ -126,17 +128,17 @@ class PINN(nn.Module):
         batch_losses = []
         self.eval()
         with torch.no_grad():
-            for i, (data, targets) in enumerate(val_loader):
+            for i, (data, target) in enumerate(val_loader):
+                for j in range(100):
+                    x = data[:,j,0].to(gb.device)
+                    y = data[:,j,1].to(gb.device)
+                    z = data[:,j,2].to(gb.device)
+                    f = data[:,j,3].to(gb.device)
+                    targets = target[:,1000+j].to(gb.device)
+                    predictions = self(x,y,z,f)
 
-                x = data[:,i,0].to(gb.device)
-                y = data[:,i,1].to(gb.device)
-                z = data[:,i,2].to(gb.device)
-                f = data[:,i,3].to(gb.device)
-                targets = targets.to(gb.device)
-                predictions = self(x,y,z,f)
-
-                loss= loss_functions.DataTermLoss()(predictions,targets)
-                batch_losses.append(loss)
+                    loss= loss_functions.DataTermLoss()(predictions,targets)
+                    batch_losses.append(loss)
         
 
         val_loss_tensor = torch.tensor(batch_losses, dtype=torch.float32)
@@ -176,11 +178,16 @@ class PINN(nn.Module):
             previsions (torch.Tensor): Model predictions.
         """
         previsions = []
-        for i in range(1202):
+        for i in range(100):
             x = input_data[:,i,0].to(gb.device)
             y = input_data[:,i,1].to(gb.device)
             z = input_data[:,i,2].to(gb.device)
             f = input_data[:,i,3].to(gb.device)
-            prev = self(x,y,z,f)
+            prev = self(x,y,z,f).detach().numpy()
             previsions.append(prev)
+
+        previsions = np.array(previsions)
+        previsions = previsions.transpose(1,0,2)
+        previsions = np.squeeze(previsions, axis=2)
+        previsions = torch.tensor(previsions,dtype=torch.cfloat)
         return previsions

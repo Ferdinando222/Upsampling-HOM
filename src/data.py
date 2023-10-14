@@ -133,27 +133,21 @@ class DataHandler:
         The real and imaginary parts of the output data are normalized separately.
         """
 
-        def normalize(part):
-            scaler = MinMaxScaler()
-            return scaler.fit_transform(part.reshape(-1, 1))
 
-        real_part_sampled, real_part_data,real_part = np.real(self.OUTPUT_SAMPLED), np.real(self.OUTPUT_NOT_SAMPLED),np.real(self.OUTPUT_DATA)
-        imaginary_part_sampled, imaginary_part_data,imaginary_part = np.imag(self.OUTPUT_SAMPLED), np.imag(self.OUTPUT_NOT_SAMPLED),np.imag(self.OUTPUT_DATA)
+        abs_sampl= self.OUTPUT_SAMPLED
+        max_sampl = np.max(abs_sampl)
+        
+        abs_not_sampl= self.OUTPUT_NOT_SAMPLED
+        max_not_sampl = np.max(abs_not_sampl)
 
-        normalized_real_sampled = normalize(real_part_sampled)
-        normalized_real_not_sampled = normalize(real_part_data)
-        normalized_real_data = normalize(real_part)
+        abs_data= self.OUTPUT_DATA
+        max_data= np.max(abs_data)
 
-        normalized_imaginary_sampled = normalize(imaginary_part_sampled)
-        normalized_imaginary_not_sampled= normalize(imaginary_part_data)
-        normalized_imaginary_data = normalize(imaginary_part)
+        
+        self.NORMALIZED_OUTPUT_SAMPLED = (self.OUTPUT_SAMPLED) / (max_sampl )
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED =(self.OUTPUT_NOT_SAMPLED) / (max_not_sampl)
+        self.NORMALIZED_OUTPUT = (self.OUTPUT_DATA) / (max_data )
 
-        self.NORMALIZED_OUTPUT_SAMPLED = normalized_real_sampled + 1j * normalized_imaginary_sampled
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED = normalized_real_not_sampled + 1j * normalized_imaginary_not_sampled
-        self.NORMALIZED_OUTPUT = normalized_real_data + 1j * normalized_imaginary_data
-        self.NORMALIZED_OUTPUT_SAMPLED = self.NORMALIZED_OUTPUT_SAMPLED.reshape((len(self.OUTPUT_SAMPLED), len(self.OUTPUT_SAMPLED[0])))
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED = self.NORMALIZED_OUTPUT_NOT_SAMPLED.reshape((len(self.OUTPUT_NOT_SAMPLED), len(self.OUTPUT_NOT_SAMPLED[0])))
-        self.NORMALIZED_OUTPUT = self.NORMALIZED_OUTPUT.reshape((len(self.OUTPUT_DATA), len(self.OUTPUT_DATA[0])))
 
     def create_tensors(self):
         """

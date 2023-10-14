@@ -26,14 +26,14 @@ inputs_not_sampled= data_handler.X_data
 pinn=False
 
 best_val_loss = float('inf')
-patience = 10
+patience = 15
 counter = 0
         
 for epoch in range(10000):
     loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,1,0.00008,0.8,points_sampled,pinn=pinn)
     val_loss = model.test_epoch(val_dataset)
 
-    if epoch % 50 == 0:
+    if epoch % 10 == 0:
         print(f'Epoch [{epoch}/{10000}], Loss: {loss.item()},Val_Loss:{val_loss.item()}')
 
         # Check for early stopping criterion
@@ -57,4 +57,19 @@ for epoch in range(10000):
         
 nmse = model.test(data_handler)
         
+# %%
+import utils
+import numpy as np
+
+ # plot and NMSE of the model;
+input_data = data_handler.X_data
+input_data = input_data.to(gb.device)
+previsions_pinn = model.make_previsions(input_data)
+previsions_pinn = previsions_pinn.cpu().detach().numpy()
+index = 10
+
+#%%
+previsions_pinn = np.squeeze(previsions_pinn[:,index])
+utils.plot_model(data_handler,previsions_pinn,points_sampled,1000+index,pinn)
+
 # %%

@@ -4,27 +4,28 @@ import matplotlib.colors as mcolors
 from sound_field_analysis import utils
 import global_variables as gb
 
-def plot_model(data,previsions,points_sampled,pinn=False):
+def plot_model(data,previsions,points_sampled,index,pinn=False):
 
     input_sampled = data.X_sampled
-    x = input_sampled[:,0].cpu().detach().numpy()
-    y =input_sampled[:,1].cpu().detach().numpy()
-    z = input_sampled[:,2].cpu().detach().numpy()
-
+    x = input_sampled[:,0,0].cpu().detach().numpy()
+    y =input_sampled[:,0,1].cpu().detach().numpy()
+    z = input_sampled[:,0,2].cpu().detach().numpy()
+    f = np.ceil(input_sampled[0,index,3].cpu().detach().numpy())
+    
     azimuth_sampled,colatitude_sampled,_ = utils.cart2sph((x,y,z))
     microphone_positions = np.column_stack((azimuth_sampled, colatitude_sampled))
 
     # Crea un grafico 2D della pressione in funzione di azimuth e colatitude
-    pressure_difference = np.abs(data.NORMALIZED_OUTPUT)-np.abs(previsions)
+    pressure_difference = np.abs(data.NORMALIZED_OUTPUT[:,index])-np.abs(previsions)
 
     fig, (ax,ax1,ax2) = plt.subplots(1, 3, figsize=(12, 5))
     sc = ax.scatter(data.azimuth, data.colatitude, c=np.abs(previsions), cmap='viridis')
-    sc1 = ax1.scatter(data.azimuth, data.colatitude, c=np.abs(data.NORMALIZED_OUTPUT), cmap='viridis')
+    sc1 = ax1.scatter(data.azimuth, data.colatitude, c=np.abs(data.NORMALIZED_OUTPUT[:,index]), cmap='viridis',vmax=1,vmin=0)
     
     cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', [(1, 0, 0),(1, 1, 1), (1, 0, 1)], N=256)
     sc2 = ax2.scatter(data.azimuth, data.colatitude, c=pressure_difference, cmap=cmap,vmax=1,vmin=-1)
 
-    ax.scatter(microphone_positions[:, 0], microphone_positions[:, 1], color='red', marker='o', label='Microphones')
+    ax.scatter(microphone_positions[:, 0], microphone_positions[:, 1], color='red', marker='o', label='Microphones',vmax=1,vmin=0)
 
     # Imposta manualmente i segnaposti e le etichette sugli assi x e y
     azimuth_ticks = [0, np.pi / 2, np.pi, 2 * np.pi]
@@ -67,15 +68,15 @@ def plot_model(data,previsions,points_sampled,pinn=False):
     cbar2.set_ticks([-1,-0.5,0,0.5, 1])
     cbar2.set_ticklabels(['-1','-0.5','0', '0.5', '1'])
 
-    frequency_label = f"Frequenza: {gb.frequency} Hz"
+    frequency_label = f"Frequenza: {f} Hz"
     ax.text(1, 0, frequency_label, transform=ax.transAxes, ha='right', va='bottom', color='black', fontsize=12)
     ax1.text(1, 0, frequency_label, transform=ax1.transAxes, ha='right', va='bottom', color='black', fontsize=12)
 
 
     if pinn:
-        plt.savefig(f"../src/image/Pinn_{points_sampled}_{gb.frequency}.png")
+        plt.savefig(f"../src/image/Pinn_{points_sampled}_{f}.png")
     else:
-        plt.savefig(f"../src/image/NoPinn_{points_sampled}_{gb.frequency}.png")
+        plt.savefig(f"../src/image/NoPinn_{points_sampled}_{f}.png")
 
     plt.show()
 
