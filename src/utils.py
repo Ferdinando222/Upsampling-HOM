@@ -3,9 +3,15 @@ import numpy as np
 import matplotlib.colors as mcolors
 from sound_field_analysis import utils
 import global_variables as gb
+from sklearn.preprocessing import MinMaxScaler
 
 def plot_model(data,previsions,points_sampled,pinn=False):
 
+    # prev_real = np.real(previsions)
+    # prev_imag = np.imag(previsions)
+    # original_real = gb.scaler_r_s.inverse_transform(prev_real)
+    # original_imag = gb.scaler_i_s.inverse_transform(prev_imag)
+    # previsions  = original_real + 1j * original_imag
     input_sampled = data.X_sampled
     x = input_sampled[:,0].cpu().detach().numpy()
     y =input_sampled[:,1].cpu().detach().numpy()
@@ -16,6 +22,7 @@ def plot_model(data,previsions,points_sampled,pinn=False):
 
     # Crea un grafico 2D della pressione in funzione di azimuth e colatitude
     pressure_difference = np.abs(data.NORMALIZED_OUTPUT)-np.abs(previsions)
+    print(pressure_difference.shape)
 
     fig, (ax,ax1,ax2) = plt.subplots(1, 3, figsize=(12, 5))
     sc = ax.scatter(data.azimuth, data.colatitude, c=np.abs(previsions), cmap='viridis')
@@ -78,6 +85,10 @@ def plot_model(data,previsions,points_sampled,pinn=False):
         plt.savefig(f"../src/image/NoPinn_{points_sampled}_{gb.frequency}.png")
 
     plt.show()
+
+
+def inverse_normalize(part, min,max):
+    return gb.scaler.inverse_transform(part.reshape(-1, 1)).flatten()
 
 
 

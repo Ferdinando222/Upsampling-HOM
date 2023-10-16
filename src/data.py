@@ -116,20 +116,20 @@ class DataHandler:
 
         The real and imaginary parts of the output data are normalized separately.
         """
-        def normalize(part):
-            scaler = MinMaxScaler()
-            return scaler.fit_transform(part.reshape(-1, 1))
+        def normalize(part,scaler):
+            scale = scaler.fit_transform(part.reshape(-1, 1))
+            return scale
 
         real_part_sampled, real_part_data,real_part = np.real(self.OUTPUT_SAMPLED), np.real(self.OUTPUT_NOT_SAMPLED),np.real(self.OUTPUT_DATA)
         imaginary_part_sampled, imaginary_part_data,imaginary_part = np.imag(self.OUTPUT_SAMPLED), np.imag(self.OUTPUT_NOT_SAMPLED),np.imag(self.OUTPUT_DATA)
 
-        normalized_real_sampled = normalize(real_part_sampled)
-        normalized_real_not_sampled = normalize(real_part_data)
-        normalized_real_data = normalize(real_part)
+        normalized_real_sampled = normalize(real_part_sampled,gb.scaler_r_s)
+        normalized_real_not_sampled = normalize(real_part_data,gb.scaler_r_ns)
+        normalized_real_data = normalize(real_part,gb.scaler_r_d)
 
-        normalized_imaginary_sampled = normalize(imaginary_part_sampled)
-        normalized_imaginary_not_sampled= normalize(imaginary_part_data)
-        normalized_imaginary_data = normalize(imaginary_part)
+        normalized_imaginary_sampled = normalize(imaginary_part_sampled,gb.scaler_i_s)
+        normalized_imaginary_not_sampled= normalize(imaginary_part_data,gb.scaler_i_ns)
+        normalized_imaginary_data = normalize(imaginary_part,gb.scaler_i_d)
 
         self.NORMALIZED_OUTPUT_SAMPLED = normalized_real_sampled + 1j * normalized_imaginary_sampled
         self.NORMALIZED_OUTPUT_NOT_SAMPLED = normalized_real_not_sampled + 1j * normalized_imaginary_not_sampled

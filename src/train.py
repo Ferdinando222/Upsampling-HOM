@@ -22,7 +22,7 @@ sweep_configuration = {
 }
 
 # Initialize sweep by passing in config.
-sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-nopinn-{gb.points_sampled}-{gb.frequency}_LBS")
+sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-nopinn-{gb.points_sampled}-{gb.frequency}")
 
 #TODO: 
 # 1)TRAINING IN DIFFERENT AMBIENT
@@ -42,7 +42,7 @@ def train():
         bc_weights=0
 
         #CREATE DATASET
-        path_data = "../dataset/DRIR_LBS_VSA_1202RS_PAL.sofa"
+        path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
         data_handler = dt.DataHandler(path_data,gb.frequency)
         points_sampled =14
         data_handler.remove_points(2)
@@ -114,6 +114,7 @@ def train():
     input_data = input_data.to(gb.device)
     previsions_pinn = model.make_previsions(input_data)
     previsions_pinn = previsions_pinn.cpu().detach().numpy()
+    previsions_pinn = previsions_pinn.flatten()
     utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn)
     print('FINISHED')
 
