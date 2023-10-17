@@ -48,6 +48,7 @@ def train():
         data_handler.remove_points(2)
         train_dataset,val_dataset = data_handler.data_loader(batch_size)
 
+
         #CREATE_NETWORK
         model = fnn.PINN(gb.input_dim,gb.output_dim,hidden_size)
         model = model.to(gb.device)

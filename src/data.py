@@ -43,9 +43,9 @@ class DataHandler:
         self.OUTPUT_NOT_SAMPLED = None
 
         # NORMALIZE OUTPUT DATA
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED = None
-        self.NORMALIZED_OUTPUT_SAMPLED = None
-        self.NORMALIZED_OUTPUT = None
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED = []
+        self.NORMALIZED_OUTPUT_SAMPLED = []
+        self.NORMALIZED_OUTPUT = []
 
         # EXTRACT POINTS IN SPHERICAL AND CARTESIAN COORDINATES
         self.x = None
@@ -94,8 +94,10 @@ class DataHandler:
         self.OUTPUT_DATA = np.fft.fft(DRIR.signal.signal)
         n = len(self.OUTPUT_DATA[0])
         self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,::100]
         frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)
         self.frequencies = frequencies[:n//2]
+        self.frequencies = self.frequencies[::100]
 
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
@@ -114,7 +116,7 @@ class DataHandler:
         for i in range(n_points):
             coordinate = coordinates_list[i]
             for j in range(n_freq):
-                frequenza = frequencies[j]
+                frequenza = self.frequencies[j]
                 x, y, z = coordinate  # Estrai i valori di x, y e z dalla tupla delle coordinate
                 self.INPUT_DATA[i, j, 0] = x  # Assegna x
                 self.INPUT_DATA[i, j, 1] = y  # Assegna y
@@ -123,32 +125,49 @@ class DataHandler:
         
         # Check on INPUT_DATA AND OUTPUT_DATA
 
+        print(self.INPUT_DATA.shape[0],self.OUTPUT_DATA.shape[0])
+        print(self.INPUT_DATA.shape[1],self.OUTPUT_DATA.shape[1])
         assert self.INPUT_DATA.shape[0] == self.OUTPUT_DATA.shape[0]
         assert self.INPUT_DATA.shape[1] == self.OUTPUT_DATA.shape[1]
 
     def normalize_data(self):
+        
         """
         Normalize the output data.
 
         The real and imaginary parts of the output data are normalized separately.
         """
+        def normalize(part):
+            scaler = MinMaxScaler()
+            scale = scaler.fit_transform(part.reshape(-1, 1))
+            return scale
 
 
-        abs_sampl= self.OUTPUT_SAMPLED
-        max_sampl = np.max(abs_sampl)
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED = []
+        self.NORMALIZED_OUTPUT_SAMPLED = []
+        self.NORMALIZED_OUTPUT = []
+
+        for j in range(85):
+            real_part_sampled, real_part_data,real_part = np.real(self.OUTPUT_SAMPLED), np.real(self.OUTPUT_NOT_SAMPLED),np.real(self.OUTPUT_DATA)
+            imaginary_part_sampled, imaginary_part_data,imaginary_part = np.imag(self.OUTPUT_SAMPLED), np.imag(self.OUTPUT_NOT_SAMPLED),np.imag(self.OUTPUT_DATA)
+
+            normalized_real_sampled = normalize(real_part_sampled)
+            normalized_real_not_sampled = normalize(real_part_data)
+            normalized_real_data = normalize(real_part)
+
+            normalized_imaginary_sampled = normalize(imaginary_part_sampled)
+            normalized_imaginary_not_sampled= normalize(imaginary_part_data)
+            normalized_imaginary_data = normalize(imaginary_part)
+
+        self.NORMALIZED_OUTPUT_SAMPLED.append(normalized_real_sampled + 1j * normalized_imaginary_sampled)
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED.append(normalized_real_not_sampled + 1j * normalized_imaginary_not_sampled)
+        self.NORMALIZED_OUTPUT.append(normalized_real_data + 1j * normalized_imaginary_data)
+
+        self.NORMALIZED_OUTPUT = np.array(self.NORMALIZED_OUTPUT).reshape(len(self.OUTPUT_DATA),len(self.OUTPUT_DATA[0]))
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED = np.array(self.NORMALIZED_OUTPUT_NOT_SAMPLED).reshape(len(self.OUTPUT_NOT_SAMPLED),len(self.OUTPUT_NOT_SAMPLED[0]))
+        self.NORMALIZED_OUTPUT_SAMPLED = np.array(self.NORMALIZED_OUTPUT_SAMPLED).reshape(len(self.OUTPUT_SAMPLED),len(self.OUTPUT_SAMPLED[0]))
+        print(len(self.NORMALIZED_OUTPUT),len(self.NORMALIZED_OUTPUT[0]))
         
-        abs_not_sampl= self.OUTPUT_NOT_SAMPLED
-        max_not_sampl = np.max(abs_not_sampl)
-
-        abs_data= self.OUTPUT_DATA
-        max_data= np.max(abs_data)
-
-        
-        self.NORMALIZED_OUTPUT_SAMPLED = (self.OUTPUT_SAMPLED) / (max_sampl )
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED =(self.OUTPUT_NOT_SAMPLED) / (max_not_sampl)
-        self.NORMALIZED_OUTPUT = (self.OUTPUT_DATA) / (max_data )
-
-
     def create_tensors(self):
         """
         Create PyTorch tensors from the data.
@@ -217,7 +236,9 @@ class DataHandler:
         """
         dataset_sampled = list(zip(self.X_sampled, self.Y_sampled))
         dataset_not_sampled = list(zip(self.X_not_sampled,self.Y_not_sampled))
+        dataset_data = list(zip(self.X_data, self.Y_data))
         train_dataloader = DataLoader(dataset_sampled, batch_size=batch_size, shuffle=False)
         test_dataloader = DataLoader(dataset_not_sampled,batch_size=batch_size,shuffle=False)
+        inputs_not_sampled = DataLoader(dataset_data,batch_size=batch_size,shuffle=False)
 
-        return train_dataloader,test_dataloader
+        return train_dataloader,test_dataloader,inputs_not_sampled

@@ -50,7 +50,7 @@ class PINN(nn.Module):
         Returns:
             out (torch.Tensor): Complex-valued output.
         """
-        x = torch.stack([x, y, z,f], dim=1).to(gb.device)  # Concatenate the inputs along dimension 1
+        x = torch.stack([x, y, z,f], dim=1)  # Concatenate the inputs along dimension 1
 
         # Forward pass for the real part
         x = self.activation(self.fc1(x))
@@ -83,21 +83,19 @@ class PINN(nn.Module):
         """
         self.pinn = pinn
         self.points_sampled = points_sampled
-        inputs_not_sampled = inputs_not_sampled.to(gb.device)
-
         cum_loss_data = []
         cum_loss_pde = []
         cum_loss_bc = []
         cum_loss = []
 
+        print("training...")
         for i, (data, target) in enumerate(loader):
-            for j in range(100):
-                x = data[:,j,0].to(gb.device)
-                y = data[:,j,1].to(gb.device)
-                z = data[:,j,2].to(gb.device)
+            x = data[:,0,0].to(gb.device)
+            y = data[:,0,1].to(gb.device)
+            z = data[:,0,2].to(gb.device)
+            for j in range(85):
                 f = data[:,j,3].to(gb.device)
-                targets = target[:,1000+j].to(gb.device)
-
+                targets = target[:,j].to(gb.device)
                 optimizer.zero_grad()
                 predictions = self(x, y, z,f)
                 loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(data_weights, pde_weights,bc_weights, pinn)(predictions, targets,
@@ -125,16 +123,17 @@ class PINN(nn.Module):
         return mean_loss, mean_loss_data, mean_loss_pde,mean_loss_bc
     
     def test_epoch(self, val_loader):
+        print("validation...")
         batch_losses = []
         self.eval()
         with torch.no_grad():
             for i, (data, target) in enumerate(val_loader):
-                for j in range(100):
-                    x = data[:,j,0].to(gb.device)
-                    y = data[:,j,1].to(gb.device)
-                    z = data[:,j,2].to(gb.device)
+                x = data[:, 0, 0].to(gb.device)
+                y = data[:, 0, 1].to(gb.device)
+                z = data[:, 0, 2].to(gb.device)
+                for j in range(85):
                     f = data[:,j,3].to(gb.device)
-                    targets = target[:,1000+j].to(gb.device)
+                    targets = target[:,j].to(gb.device)
                     predictions = self(x,y,z,f)
 
                     loss= loss_functions.DataTermLoss()(predictions,targets)
@@ -178,12 +177,12 @@ class PINN(nn.Module):
             previsions (torch.Tensor): Model predictions.
         """
         previsions = []
-        for i in range(100):
+        for i in range(85):
             x = input_data[:,i,0].to(gb.device)
             y = input_data[:,i,1].to(gb.device)
             z = input_data[:,i,2].to(gb.device)
             f = input_data[:,i,3].to(gb.device)
-            prev = self(x,y,z,f).detach().numpy()
+            prev = self(x,y,z,f).cpu().detach().numpy()
             previsions.append(prev)
 
         previsions = np.array(previsions)

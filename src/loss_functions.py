@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import global_variables as gb
+import random
 
 # Import necessary libraries and modules
 
@@ -55,35 +56,36 @@ class HelmholtzLoss(nn.Module):
             mse_pde_loss (torch.Tensor): The calculated loss for the Helmholtz equation.
         """
 
-        x = inputs[:,:,0].to(gb.device)
-        y = inputs[:,:,1].to(gb.device)
-        z = inputs[:,:,2].to(gb.device)
-        f = inputs[:,:,3].to(gb.device)
+        batch_loss = []
+        for _,(data,_) in enumerate(inputs):
+            x = data[:,0,0].to(gb.device)
+            y = data[:,0,1].to(gb.device)
+            z = data[:,0,2].to(gb.device)
 
-        x = x.requires_grad_(True)
-        y = y.requires_grad_(True)
-        z = z.requires_grad_(True)
+            x = x.requires_grad_(True)
+            y = y.requires_grad_(True)
+            z = z.requires_grad_(True)
 
+            index = random.randint(0,84)
+            f = data[:,index,3].to(gb.device)
+            u = model_estimation(x, y, z,f)
+            # Calculate partial derivatives of u with respect to x, y, and z
+            d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
+            d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
+            d_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
+            # Calculate the Laplacian of u
+            laplace_u = torch.autograd.grad(d_x.sum(), x, create_graph=True)[0] + \
+                        torch.autograd.grad(d_y.sum(), y, create_graph=True)[0] + \
+                        torch.autograd.grad(d_z.sum(), z, create_graph=True)[0]
+            # Calculate the residual of the Helmholtz equation
+            pde_residual = laplace_u + (self.c / self.omega) ** 2 * u
+            # Calculate the MSE loss of the Helmholtz equation residual
+            loss_pde = torch.mean(torch.abs(pde_residual) ** 2)
+            batch_loss.append(loss_pde)
 
-        u = model_estimation(x, y, z,f)
+        loss_pde = torch.mean(torch.tensor(torch.abs(pde_residual) ** 2,dtype=torch.float32))
 
-        # Calculate partial derivatives of u with respect to x, y, and z
-        d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
-        d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
-        d_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
-
-        # Calculate the Laplacian of u
-        laplace_u = torch.autograd.grad(d_x.sum(), x, create_graph=True)[0] + \
-                    torch.autograd.grad(d_y.sum(), y, create_graph=True)[0] + \
-                    torch.autograd.grad(d_z.sum(), z, create_graph=True)[0]
-
-        # Calculate the residual of the Helmholtz equation
-        pde_residual = laplace_u + (self.c / self.omega) ** 2 * u
-
-        # Calculate the MSE loss of the Helmholtz equation residual
-        mse_pde_loss = torch.mean(torch.abs(pde_residual) ** 2)
-
-        return mse_pde_loss
+        return loss_pde
 
     import numpy as np
 
@@ -98,7 +100,7 @@ class BCLoss(nn.Module):
         super(BCLoss, self).__init__()
 
     def forward(self,inputs,model_estimation):
-        
+
         """
         Forward pass of the BCLoss module.
 
@@ -110,10 +112,10 @@ class BCLoss(nn.Module):
             mse_bc (torch.Tensor): The calculated boundary condition loss.
         """
 
-        x = inputs[:,:,0].to(gb.device)
-        y = inputs[:,:,1].to(gb.device)
-        z = inputs[:,:,2].to(gb.device)
-        f = inputs[:,:,3].to(gb.device)
+        x = inputs[:,0,0].to(gb.device)
+        y = inputs[:,0,1].to(gb.device)
+        z = inputs[:,0,2].to(gb.device)
+        f = inputs[:,0,3].to(gb.device)
 
         x = x.requires_grad_(True)
         y = y.requires_grad_(True)
@@ -135,7 +137,7 @@ class BCLoss(nn.Module):
 
 
 class CombinedLoss(nn.Module):
-    
+
     """
     Combined loss module for both data term and Helmholtz equation term losses.
 
@@ -176,14 +178,14 @@ class CombinedLoss(nn.Module):
         loss_bc = 0
         if self.pinn:
             pde_loss = self.pde_loss_fn(inputs, model_estimation)
-            bc_loss = self.bc_loss_fn(inputs,model_estimation)
+            #bc_loss = self.bc_loss_fn(inputs,model_estimation)
             loss_pde = self.pde_weight * pde_loss
-            loss_bc = self.bc_weight *bc_loss
+            #loss_bc = self.bc_weight *bc_loss
 
-        loss_data = self.data_weight * data_loss 
+        loss_data = self.data_weight * data_loss
 
         # Calculate the combined loss
-        loss = loss_pde + loss_data + loss_bc
+        loss = loss_pde + loss_data
 
         return loss, loss_data, loss_pde,loss_bc
 

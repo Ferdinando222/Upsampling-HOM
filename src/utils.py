@@ -20,12 +20,12 @@ def plot_model(data,previsions,points_sampled,index,pinn=False):
 
     fig, (ax,ax1,ax2) = plt.subplots(1, 3, figsize=(12, 5))
     sc = ax.scatter(data.azimuth, data.colatitude, c=np.abs(previsions), cmap='viridis')
-    sc1 = ax1.scatter(data.azimuth, data.colatitude, c=np.abs(data.NORMALIZED_OUTPUT[:,index]), cmap='viridis',vmax=1,vmin=0)
+    sc1 = ax1.scatter(data.azimuth, data.colatitude, c=np.abs(data.NORMALIZED_OUTPUT[:,index]), cmap='viridis')
     
     cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', [(1, 0, 0),(1, 1, 1), (1, 0, 1)], N=256)
     sc2 = ax2.scatter(data.azimuth, data.colatitude, c=pressure_difference, cmap=cmap,vmax=1,vmin=-1)
 
-    ax.scatter(microphone_positions[:, 0], microphone_positions[:, 1], color='red', marker='o', label='Microphones',vmax=1,vmin=0)
+    ax.scatter(microphone_positions[:, 0], microphone_positions[:, 1], color='red', marker='o', label='Microphones')
 
     # Imposta manualmente i segnaposti e le etichette sugli assi x e y
     azimuth_ticks = [0, np.pi / 2, np.pi, 2 * np.pi]
