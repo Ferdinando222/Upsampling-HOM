@@ -88,12 +88,11 @@ class PINN(nn.Module):
         cum_loss_bc = []
         cum_loss = []
 
-        print("training...")
         for i, (data, target) in enumerate(loader):
             x = data[:,0,0].to(gb.device)
             y = data[:,0,1].to(gb.device)
             z = data[:,0,2].to(gb.device)
-            for j in range(85):
+            for j in range(len(data[0,:,3])):
                 f = data[:,j,3].to(gb.device)
                 targets = target[:,j].to(gb.device)
                 optimizer.zero_grad()
@@ -123,7 +122,6 @@ class PINN(nn.Module):
         return mean_loss, mean_loss_data, mean_loss_pde,mean_loss_bc
     
     def test_epoch(self, val_loader):
-        print("validation...")
         batch_losses = []
         self.eval()
         with torch.no_grad():
@@ -131,7 +129,7 @@ class PINN(nn.Module):
                 x = data[:, 0, 0].to(gb.device)
                 y = data[:, 0, 1].to(gb.device)
                 z = data[:, 0, 2].to(gb.device)
-                for j in range(85):
+                for j in range(len(data[0,:,3])):
                     f = data[:,j,3].to(gb.device)
                     targets = target[:,j].to(gb.device)
                     predictions = self(x,y,z,f)
@@ -177,7 +175,7 @@ class PINN(nn.Module):
             previsions (torch.Tensor): Model predictions.
         """
         previsions = []
-        for i in range(85):
+        for i in range(len(input_data[0,:,3])):
             x = input_data[:,i,0].to(gb.device)
             y = input_data[:,i,1].to(gb.device)
             z = input_data[:,i,2].to(gb.device)

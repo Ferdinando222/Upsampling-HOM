@@ -94,10 +94,10 @@ class DataHandler:
         self.OUTPUT_DATA = np.fft.fft(DRIR.signal.signal)
         n = len(self.OUTPUT_DATA[0])
         self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,::100]
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,::85]
         frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)
         self.frequencies = frequencies[:n//2]
-        self.frequencies = self.frequencies[::100]
+        self.frequencies = self.frequencies[::85]
 
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
@@ -147,17 +147,17 @@ class DataHandler:
         self.NORMALIZED_OUTPUT_SAMPLED = []
         self.NORMALIZED_OUTPUT = []
 
-        for j in range(85):
-            real_part_sampled, real_part_data,real_part = np.real(self.OUTPUT_SAMPLED), np.real(self.OUTPUT_NOT_SAMPLED),np.real(self.OUTPUT_DATA)
-            imaginary_part_sampled, imaginary_part_data,imaginary_part = np.imag(self.OUTPUT_SAMPLED), np.imag(self.OUTPUT_NOT_SAMPLED),np.imag(self.OUTPUT_DATA)
+        
+        real_part_sampled, real_part_data,real_part = np.real(self.OUTPUT_SAMPLED), np.real(self.OUTPUT_NOT_SAMPLED),np.real(self.OUTPUT_DATA)
+        imaginary_part_sampled, imaginary_part_data,imaginary_part = np.imag(self.OUTPUT_SAMPLED), np.imag(self.OUTPUT_NOT_SAMPLED),np.imag(self.OUTPUT_DATA)
 
-            normalized_real_sampled = normalize(real_part_sampled)
-            normalized_real_not_sampled = normalize(real_part_data)
-            normalized_real_data = normalize(real_part)
+        normalized_real_sampled = normalize(real_part_sampled)
+        normalized_real_not_sampled = normalize(real_part_data)
+        normalized_real_data = normalize(real_part)
 
-            normalized_imaginary_sampled = normalize(imaginary_part_sampled)
-            normalized_imaginary_not_sampled= normalize(imaginary_part_data)
-            normalized_imaginary_data = normalize(imaginary_part)
+        normalized_imaginary_sampled = normalize(imaginary_part_sampled)
+        normalized_imaginary_not_sampled= normalize(imaginary_part_data)
+        normalized_imaginary_data = normalize(imaginary_part)
 
         self.NORMALIZED_OUTPUT_SAMPLED.append(normalized_real_sampled + 1j * normalized_imaginary_sampled)
         self.NORMALIZED_OUTPUT_NOT_SAMPLED.append(normalized_real_not_sampled + 1j * normalized_imaginary_not_sampled)
