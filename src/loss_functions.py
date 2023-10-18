@@ -66,26 +66,30 @@ class HelmholtzLoss(nn.Module):
             y = y.requires_grad_(True)
             z = z.requires_grad_(True)
 
-            index = random.randint(0,84)
-            f = data[:,index,3].to(gb.device)
-            u = model_estimation(x, y, z,f)
-            # Calculate partial derivatives of u with respect to x, y, and z
-            d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
-            d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
-            d_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
-            # Calculate the Laplacian of u
-            laplace_u = torch.autograd.grad(d_x.sum(), x, create_graph=True)[0] + \
-                        torch.autograd.grad(d_y.sum(), y, create_graph=True)[0] + \
-                        torch.autograd.grad(d_z.sum(), z, create_graph=True)[0]
-            # Calculate the residual of the Helmholtz equation
-            pde_residual = laplace_u + (self.c / self.omega) ** 2 * u
-            # Calculate the MSE loss of the Helmholtz equation residual
-            loss_pde = torch.mean(torch.abs(pde_residual) ** 2)
-            batch_loss.append(loss_pde)
+            temp_loss  = []
+            for index in range(len(data[0,:,3])):
+                f = data[:,index,3].to(gb.device)
+                u = model_estimation(x, y, z,f)
+                # Calculate partial derivatives of u with respect to x, y, and z
+                d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
+                d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
+                d_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
+                # Calculate the Laplacian of u
+                laplace_u = torch.autograd.grad(d_x.sum(), x, create_graph=True)[0] + \
+                            torch.autograd.grad(d_y.sum(), y, create_graph=True)[0] + \
+                            torch.autograd.grad(d_z.sum(), z, create_graph=True)[0]
+                # Calculate the residual of the Helmholtz equation
+                pde_residual = laplace_u + (self.c / self.omega) ** 2 * u
+                # Calculate the MSE loss of the Helmholtz equation residual
+                loss_pde = torch.mean(torch.abs(pde_residual) ** 2)
+                temp_loss.append(loss_pde)
 
-        loss_pde = torch.mean(torch.tensor(torch.abs(pde_residual) ** 2,dtype=torch.float32))
+            temp_loss = torch.mean(torch.tensor(temp_loss,dtype=torch.float32))
+            batch_loss.append(temp_loss)
 
-        return loss_pde
+        cum_loss = torch.mean(torch.tensor(batch_loss,dtype=torch.float32))
+
+        return cum_loss
 
     import numpy as np
 
