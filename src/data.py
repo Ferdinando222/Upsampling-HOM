@@ -89,11 +89,15 @@ class DataHandler:
         DRIR = io.read_SOFA_file(sofa_file_path)
         grid = DRIR.grid
 
-        # Calculate the index based on the given frequency
-        index = int(np.ceil((frequency / DRIR.signal.fs) * len(DRIR.signal[0])))
-
         # Extract the output data (FFT at the specified index)
-        self.OUTPUT_DATA = np.fft.fft(DRIR.signal.signal)[:, index]
+        self.OUTPUT_DATA = np.fft.fft(DRIR.signal.signal)
+
+        n = len(self.OUTPUT_DATA[0])
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
+        # Calculate the index based on the given frequency
+        index = int(np.ceil((frequency / DRIR.signal.fs) * len(self.OUTPUT_DATA[0])))
+
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,index]
 
         # Extract spherical coordinates
         self.azimuth = grid.azimuth

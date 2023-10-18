@@ -10,11 +10,11 @@ import global_variables as gb
 # Define sweep config
 sweep_configuration = {
     "method": "grid",
-    "name": "Training no pinn with different hidden size",
+    "name": "Training pinn with different hidden size",
     "metric": {"goal": "minimize", "name": "nmse"},
     "parameters": {
         "batch_size": {"values": [16,30,64]},
-        "learning_rate": {"values":[0.001]},
+        "learning_rate": {"values":[0.01]},
         "hidden_size":{"values":[22]},
         #"pde_weights":{"max":100.0,"min":0.1},
         #"data_weights":{"max":2.0,"min":0.001}
@@ -22,7 +22,7 @@ sweep_configuration = {
 }
 
 # Initialize sweep by passing in config.
-sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-nopinn-{gb.points_sampled}-{gb.frequency}")
+sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-pinn-{gb.points_sampled}-{gb.frequency}")
 
 #TODO: 
 # 1)TRAINING IN DIFFERENT AMBIENT
@@ -38,7 +38,7 @@ def train():
         batch_size = wandb.config.batch_size
         learning_rate = wandb.config.learning_rate
         data_weights = 1
-        pde_weights = 10
+        pde_weights = 1
         bc_weights=0
 
         #CREATE DATASET
@@ -57,10 +57,8 @@ def train():
         inputs_not_sampled= data_handler.X_data
         
         #TRAINING
-        
-        
 
-        pinn=False
+        pinn=True
         if pinn:
             print("Start Training PINN")
             wandb.run.name = f"hidden_size_{hidden_size}_{points_sampled}_{gb.frequency}_pinn"
@@ -70,7 +68,7 @@ def train():
 
         # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 10
+        patience = 40
         counter = 0
         
         for epoch in range(epochs):
@@ -86,41 +84,39 @@ def train():
                 "val_loss":val_loss
             }
             )
-            if epoch % 50 == 0:
+            if epoch % 10 == 0:
                 print(f'Epoch [{epoch}/{epochs}], Loss: {loss.item()},Val_Loss:{val_loss.item()}')
 
-                # Check for early stopping criterion
-                if val_loss < best_val_loss:
-                    best_val_loss = val_loss
-                    counter = 0
-                else:
-                    counter += 1
-                    if(counter== 5):
-                        learning_rate = learning_rate/10
-                        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-                        print(f"Decrease learning rate {learning_rate} epochs.")
-
-                if counter >= patience:
-                    print(f"Early stopping after {epoch + 1} epochs.")
-                    break
+            # Check for early stopping criterion
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                counter = 0
+            else:
+                counter += 1
+                if(counter== 20):
+                    learning_rate = learning_rate/10
+                    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+                    print(f"Decrease learning rate {learning_rate} epochs.")
+            if counter >= patience:
+                print(f"Early stopping after {epoch + 1} epochs.")
+                break
 
         nmse = model.test(data_handler)
         wandb.log({"nmse": nmse})
 
     print(nmse)
 
-    # plot and NMSE of the model
+    # plot the model
     input_data = data_handler.X_data
     input_data = input_data.to(gb.device)
     previsions_pinn = model.make_previsions(input_data)
     previsions_pinn = previsions_pinn.cpu().detach().numpy()
-    previsions_pinn = previsions_pinn.flatten()
+    previsions_pinn = previsions_pinn
     utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn)
     print('FINISHED')
 
 if __name__=="__main__":
-    #TRAINING PINN
+    #TRAINING 
     wandb.agent(sweep_id=sweep_id,function=train)
-    #TRAINING NO PINN
 
 # %%
