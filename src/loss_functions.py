@@ -83,8 +83,6 @@ class HelmholtzLoss(nn.Module):
 
         return mse_pde_loss
 
-    import numpy as np
-
 class BCLoss(nn.Module):
 
     def __init__(self):

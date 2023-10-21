@@ -38,7 +38,7 @@ def train():
         batch_size = wandb.config.batch_size
         learning_rate = wandb.config.learning_rate
         data_weights = 1
-        pde_weights = 1
+        pde_weights =1
         bc_weights=0
 
         #CREATE DATASET
@@ -68,7 +68,7 @@ def train():
 
         # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 40
+        patience = 200
         counter = 0
         
         for epoch in range(epochs):
@@ -90,18 +90,21 @@ def train():
             # Check for early stopping criterion
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
+                best_model = model
                 counter = 0
             else:
                 counter += 1
-                if(counter== 20):
-                    learning_rate = learning_rate/10
+                if(counter== 100):
+                    learning_rate = learning_rate
                     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
                     print(f"Decrease learning rate {learning_rate} epochs.")
+
             if counter >= patience:
                 print(f"Early stopping after {epoch + 1} epochs.")
-                break
+                counter=0
+    
 
-        nmse = model.test(data_handler)
+        nmse = best_model.test(data_handler)
         wandb.log({"nmse": nmse})
 
     print(nmse)
@@ -109,7 +112,7 @@ def train():
     # plot the model
     input_data = data_handler.X_data
     input_data = input_data.to(gb.device)
-    previsions_pinn = model.make_previsions(input_data)
+    previsions_pinn = best_model.make_previsions(input_data)
     previsions_pinn = previsions_pinn.cpu().detach().numpy()
     previsions_pinn = previsions_pinn
     utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn)

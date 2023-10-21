@@ -31,7 +31,10 @@ class PINN(nn.Module):
         self.fc1 = nn.Linear(input_size, hidden_size, bias=False)
         self.fc2 = nn.Linear(hidden_size, hidden_size, bias=False)
         self.fc3 = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.fc4 = nn.Linear(hidden_size, 2 * output_size)
+        self.fc4 = nn.Linear(hidden_size, hidden_size)  # New hidden layer
+        self.fc5 = nn.Linear(hidden_size, hidden_size)  # New hidden layer
+        self.fc6 = nn.Linear(hidden_size, hidden_size)  # New hidden layer
+        self.fc7 = nn.Linear(hidden_size, 2 * output_size)  # Output layer
 
         # Define the activation function (tanh)
         self.activation = nn.Tanh()
@@ -49,17 +52,20 @@ class PINN(nn.Module):
         Returns:
             out (torch.Tensor): Complex-valued output.
         """
-        x = torch.stack([x, y, z], dim=1).to(gb.device)  # Concatenate the inputs along dimension 1
 
-        # Forward pass for the real part
+        x = torch.stack([x, y, z], dim=1).to(gb.device)
+
+        # Forward pass through the deep network
         x = self.activation(self.fc1(x))
         x = self.activation(self.fc2(x))
         x = self.activation(self.fc3(x))
-        x = self.fc4(x)
+        x = self.activation(self.fc4(x))
+        x = self.activation(self.fc5(x))
+        x = self.activation(self.fc6(x))
+        x = self.fc7(x)
 
-        real_output, imag_output = x.chunk(2, dim=1)
+        real_output, imag_output = x[:,0], x[:,1]
         out = torch.complex(real_output, imag_output)
-
         return out
 
     def train_epoch(self, loader, inputs_not_sampled, optimizer, data_weights, pde_weights,bc_weights, points_sampled, pinn=False):
@@ -178,4 +184,5 @@ class PINN(nn.Module):
         y = input_data[:, 1].to(gb.device)
         z = input_data[:, 2].to(gb.device)
         previsions = self(x, y, z)
+        previsions = torch.tensor(previsions.flatten(),dtype=torch.cfloat)
         return previsions
