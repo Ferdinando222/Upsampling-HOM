@@ -1,7 +1,6 @@
 from sound_field_analysis import io, utils, gen
 import numpy as np
 import torch
-from sklearn.preprocessing import MinMaxScaler
 from torch.utils.data import DataLoader
 import global_variables as gb
 
@@ -43,9 +42,9 @@ class DataHandler:
         self.OUTPUT_NOT_SAMPLED = None
 
         # NORMALIZE OUTPUT DATA
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED = []
-        self.NORMALIZED_OUTPUT_SAMPLED = []
-        self.NORMALIZED_OUTPUT = []
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED = None
+        self.NORMALIZED_OUTPUT_SAMPLED = None
+        self.NORMALIZED_OUTPUT = None
 
         # EXTRACT POINTS IN SPHERICAL AND CARTESIAN COORDINATES
         self.x = None
@@ -54,7 +53,6 @@ class DataHandler:
         self.azimuth = None
         self.colatitude = None
         self.radius = None
-        self.frequencies = None
         #TENSORS
         self.X_sampled = None
         self.X_not_sampled = None
@@ -90,14 +88,15 @@ class DataHandler:
         DRIR = io.read_SOFA_file(sofa_file_path)
         grid = DRIR.grid
 
-        # Extract the output data and the respective frequencies
+        # Extract the output data (FFT at the specified index)
         self.OUTPUT_DATA = np.fft.fft(DRIR.signal.signal)
+
         n = len(self.OUTPUT_DATA[0])
         self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,::85]
-        frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)
-        self.frequencies = frequencies[:n//2]
-        self.frequencies = self.frequencies[::85]
+
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,35]
+
+        self.frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)
 
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
@@ -107,67 +106,33 @@ class DataHandler:
         # Convert spherical coordinates to Cartesian coordinates
         self.x, self.y, self.z = utils.sph2cart((self.azimuth, self.colatitude, self.radius))
 
-        coordinates_list = list(zip(self.x, self.y, self.z))
-        n_points = len(DRIR.signal.signal)
-        n_freq = len(self.frequencies)
+        self.INPUT_DATA = list(zip(self.x, self.y, self.z))
 
-        self.INPUT_DATA = np.empty((n_points, n_freq, 4), dtype=float)
-
-        for i in range(n_points):
-            coordinate = coordinates_list[i]
-            for j in range(n_freq):
-                frequenza = self.frequencies[j]
-                x, y, z = coordinate  # Estrai i valori di x, y e z dalla tupla delle coordinate
-                self.INPUT_DATA[i, j, 0] = x  # Assegna x
-                self.INPUT_DATA[i, j, 1] = y  # Assegna y
-                self.INPUT_DATA[i, j, 2] = z  # Assegna z
-                self.INPUT_DATA[i, j, 3] = frequenza  # Assegna la frequenza corretta
-        
         # Check on INPUT_DATA AND OUTPUT_DATA
+        assert len(self.INPUT_DATA) == len(DRIR.signal.signal)
+        assert len(self.INPUT_DATA) == len(self.OUTPUT_DATA)
 
-        print(self.INPUT_DATA.shape[0],self.OUTPUT_DATA.shape[0])
-        print(self.INPUT_DATA.shape[1],self.OUTPUT_DATA.shape[1])
-        assert self.INPUT_DATA.shape[0] == self.OUTPUT_DATA.shape[0]
-        assert self.INPUT_DATA.shape[1] == self.OUTPUT_DATA.shape[1]
 
     def normalize_data(self):
-        
         """
         Normalize the output data.
 
         The real and imaginary parts of the output data are normalized separately.
         """
-        def normalize(part):
-            scaler = MinMaxScaler()
-            scale = scaler.fit_transform(part.reshape(-1, 1))
-            return scale
+
+        out_s_p = np.abs(self.OUTPUT_SAMPLED) * np.exp(1j * np.angle(self.OUTPUT_SAMPLED))
+        out_ns_p = np.abs(self.OUTPUT_NOT_SAMPLED) * np.exp(1j * np.angle(self.OUTPUT_NOT_SAMPLED))
+        out = np.abs(self.OUTPUT_DATA) * np.exp(1j * np.angle(self.OUTPUT_DATA))
+
+        max_out_s_p = np.max(np.abs(self.OUTPUT_SAMPLED))
+        max_out_ns_p = np.max(np.abs(self.OUTPUT_NOT_SAMPLED))
+        max_out = np.max(np.abs(self.OUTPUT_DATA))
+
+        self.NORMALIZED_OUTPUT_SAMPLED =out_s_p/max_out_s_p
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED =out_ns_p/max_out_ns_p
+        self.NORMALIZED_OUTPUT =out/max_out
 
 
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED = []
-        self.NORMALIZED_OUTPUT_SAMPLED = []
-        self.NORMALIZED_OUTPUT = []
-
-        
-        real_part_sampled, real_part_data,real_part = np.real(self.OUTPUT_SAMPLED), np.real(self.OUTPUT_NOT_SAMPLED),np.real(self.OUTPUT_DATA)
-        imaginary_part_sampled, imaginary_part_data,imaginary_part = np.imag(self.OUTPUT_SAMPLED), np.imag(self.OUTPUT_NOT_SAMPLED),np.imag(self.OUTPUT_DATA)
-
-        normalized_real_sampled = normalize(real_part_sampled)
-        normalized_real_not_sampled = normalize(real_part_data)
-        normalized_real_data = normalize(real_part)
-
-        normalized_imaginary_sampled = normalize(imaginary_part_sampled)
-        normalized_imaginary_not_sampled= normalize(imaginary_part_data)
-        normalized_imaginary_data = normalize(imaginary_part)
-
-        self.NORMALIZED_OUTPUT_SAMPLED.append(normalized_real_sampled + 1j * normalized_imaginary_sampled)
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED.append(normalized_real_not_sampled + 1j * normalized_imaginary_not_sampled)
-        self.NORMALIZED_OUTPUT.append(normalized_real_data + 1j * normalized_imaginary_data)
-
-        self.NORMALIZED_OUTPUT = np.array(self.NORMALIZED_OUTPUT).reshape(len(self.OUTPUT_DATA),len(self.OUTPUT_DATA[0]))
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED = np.array(self.NORMALIZED_OUTPUT_NOT_SAMPLED).reshape(len(self.OUTPUT_NOT_SAMPLED),len(self.OUTPUT_NOT_SAMPLED[0]))
-        self.NORMALIZED_OUTPUT_SAMPLED = np.array(self.NORMALIZED_OUTPUT_SAMPLED).reshape(len(self.OUTPUT_SAMPLED),len(self.OUTPUT_SAMPLED[0]))
-        print(len(self.NORMALIZED_OUTPUT),len(self.NORMALIZED_OUTPUT[0]))
-        
     def create_tensors(self):
         """
         Create PyTorch tensors from the data.
@@ -209,10 +174,10 @@ class DataHandler:
                     matching_indices.append(i)
                     break
 
-        self.INPUT_SAMPLED = np.array([item for i, item in enumerate(self.INPUT_DATA) if i  in matching_indices])
+        self.INPUT_SAMPLED = [item for i, item in enumerate(self.INPUT_DATA) if i  in matching_indices]
         self.OUTPUT_SAMPLED =[item for i, item in enumerate(self.OUTPUT_DATA) if i  in matching_indices]
 
-        self.INPUT_NOT_SAMPLED = np.delete(self.INPUT_DATA,matching_indices,axis=0 )
+        self.INPUT_NOT_SAMPLED  = np.delete(self.INPUT_DATA,matching_indices,axis=0 )
         self.OUTPUT_NOT_SAMPLED = np.delete(self.OUTPUT_DATA, matching_indices, axis=0)
 
         # Check input and ouput have the same size of points_sampled
@@ -236,9 +201,7 @@ class DataHandler:
         """
         dataset_sampled = list(zip(self.X_sampled, self.Y_sampled))
         dataset_not_sampled = list(zip(self.X_not_sampled,self.Y_not_sampled))
-        dataset_data = list(zip(self.X_data, self.Y_data))
-        train_dataloader = DataLoader(dataset_sampled, batch_size=batch_size, shuffle=False)
-        test_dataloader = DataLoader(dataset_not_sampled,batch_size=batch_size,shuffle=False)
-        inputs_not_sampled = DataLoader(dataset_data,batch_size=batch_size,shuffle=False)
+        train_dataloader = DataLoader(dataset_sampled, batch_size=batch_size, shuffle=True)
+        test_dataloader = DataLoader(dataset_not_sampled,batch_size=batch_size,shuffle=True)
 
-        return train_dataloader,test_dataloader,inputs_not_sampled
+        return train_dataloader,test_dataloader
