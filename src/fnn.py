@@ -24,20 +24,22 @@ class PINN(nn.Module):
         hidden_size (int): Size of the hidden layers.
     """
 
-    def __init__(self, input_size, output_size, hidden_size):
+    def __init__(self, input_size, output_size, hidden_size,layers=5):
         super(PINN, self).__init__()
 
         # Define the layers for the real part
-        self.fc1 = nn.Linear(input_size, hidden_size, bias=False)
-        self.fc2 = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.fc3 = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.fc4 = nn.Linear(hidden_size, 2 * output_size)
+        self.layers = layers
+        self.fc_in = nn.Linear(input_size, hidden_size)
+
+        self.hidden_layers = nn.ModuleList([nn.Linear(hidden_size, hidden_size) for _ in range(layers)])
+
+        self.fc_out = nn.Linear(hidden_size, 2 * output_size)  # Output layer
 
         # Define the activation function (tanh)
         self.activation = nn.Tanh()
         self.hidden_size = hidden_size
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z,t):
         """
         Forward pass of the PINN model.
 
@@ -49,15 +51,18 @@ class PINN(nn.Module):
         Returns:
             out (torch.Tensor): Complex-valued output.
         """
-        x = torch.stack([x, y, z], dim=1).to(gb.device)  # Concatenate the inputs along dimension 1
 
-        # Forward pass for the real part
-        x = self.activation(self.fc1(x))
-        x = self.activation(self.fc2(x))
-        x = self.activation(self.fc3(x))
-        x = self.fc4(x)
+        x = torch.stack([x, y, z,t], dim=1).to(gb.device)
 
-        real_output, imag_output = x.chunk(2, dim=1)
+        # Forward pass through the deep network
+        x = self.activation(self.fc_in(x))
+
+        for i in range(self.layers):
+            hidden_layers = self.hidden_layers[i]
+            x = self.activation(hidden_layers(x))
+        x = self.fc_out(x)
+
+        real_output, imag_output = x[:,0], x[:,1]
         out = torch.complex(real_output, imag_output)
 
         return out
@@ -89,24 +94,28 @@ class PINN(nn.Module):
         cum_loss_bc = []
         cum_loss = []
 
-        for _, (data, target) in enumerate(loader):
+        for _, (data,time, target) in enumerate(loader):
             x = data[:, 0].to(gb.device)
             y = data[:, 1].to(gb.device)
             z = data[:, 2].to(gb.device)
-            target = target.to(gb.device)
 
-            optimizer.zero_grad()
-            predictions = self(x, y, z)
-            loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(data_weights, pde_weights,bc_weights, pinn)(predictions, target,
-                                                                                                       inputs_not_sampled,self)
+            for i in range(len(time[0])):
+                t = time[:,i]
+                target = target[:,i]
+                target = target.to(gb.device)
 
-            cum_loss_data.append(loss_data)
-            cum_loss_pde.append(loss_pde)
-            cum_loss_bc.append(loss_bc)
-            cum_loss.append(loss)
+                optimizer.zero_grad()
+                predictions = self(x, y, z,t)
+                loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(data_weights, pde_weights,bc_weights, pinn)(predictions, target,
+                                                                                                        inputs_not_sampled,t,self)
 
-            loss.backward()
-            optimizer.step()
+                cum_loss_data.append(loss_data)
+                cum_loss_pde.append(loss_pde)
+                cum_loss_bc.append(loss_bc)
+                cum_loss.append(loss)
+
+                loss.backward()
+                optimizer.step()
 
         # Convert cum_loss to a tensor
         cum_loss_tensor = torch.tensor(cum_loss, dtype=torch.float32)
@@ -125,16 +134,20 @@ class PINN(nn.Module):
         batch_losses = []
         self.eval()
         with torch.no_grad():
-            for _, (data, targets) in enumerate(val_loader):
+            for _, (data, time,targets) in enumerate(val_loader):
 
                 x = data[:, 0].to(gb.device)
                 y = data[:, 1].to(gb.device)
                 z = data[:, 2].to(gb.device)
-                targets = targets.to(gb.device)
-                predictions = self(x,y,z)
 
-                loss= loss_functions.DataTermLoss()(predictions,targets)
-                batch_losses.append(loss)
+                for i in range(len(time[0])):
+                    t = time[:,i]
+                    targets = targets[:,i]
+                    targets = targets.to(gb.device)
+                    predictions = self(x,y,z,t)
+
+                    loss= loss_functions.DataTermLoss()(predictions,targets)
+                    batch_losses.append(loss)
         
 
         val_loss_tensor = torch.tensor(batch_losses, dtype=torch.float32)
@@ -158,12 +171,13 @@ class PINN(nn.Module):
         """
         normalized_output_data = torch.tensor(data_handler.NORMALIZED_OUTPUT, dtype=torch.cfloat)
         X_data_not_sampled= data_handler.X_data
+        time = data_handler.time_values.repeat(len(X_data_not_sampled),1)
         X_data_not_sampled = X_data_not_sampled.to(gb.device)
-        previsions = self.make_previsions(X_data_not_sampled)
+        previsions = self.make_previsions(X_data_not_sampled,time)
         nmse = loss_functions.NMSE(normalized_output_data, previsions)
         return nmse
 
-    def make_previsions(self, input_data):
+    def make_previsions(self, input_data,time):
         """
         Make predictions using the PINN model.
 
@@ -177,5 +191,7 @@ class PINN(nn.Module):
         x = input_data[:, 0].to(gb.device)
         y = input_data[:, 1].to(gb.device)
         z = input_data[:, 2].to(gb.device)
-        previsions = self(x, y, z)
+        for i in range(len(time[0])):
+            t = time[:,i]
+            previsions.append(self(x,y,z,t))
         return previsions

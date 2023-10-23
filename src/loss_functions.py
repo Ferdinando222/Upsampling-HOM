@@ -43,7 +43,7 @@ class HelmholtzLoss(nn.Module):
         self.c = c
         self.omega = omega
 
-    def forward(self, inputs, model_estimation):
+    def forward(self, inputs,time, model_estimation):
         """
         Forward pass of the HelmholtzLoss module.
 
@@ -62,21 +62,26 @@ class HelmholtzLoss(nn.Module):
         x = x.requires_grad_(True)
         y = y.requires_grad_(True)
         z = z.requires_grad_(True)
+        t = t.requires_grad_(True)
 
-        u = model_estimation(x, y, z)
+        for i in range(len(time[0])):
+            t = time[:,i]
+            u = model_estimation(x, y, z,t)
 
-        # Calculate partial derivatives of u with respect to x, y, and z
-        d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
-        d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
-        d_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
+            # Calculate partial derivatives of u with respect to x, y, and z
+            d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
+            d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
+            d_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
+            d_t = torch.autograd.grad(u.sum(),t,create_graph=True)[0]
+            d2u_dt2 = torch.autograd.grad(d_t, t, create_graph=True)[0]
 
-        # Calculate the Laplacian of u
-        laplace_u = torch.autograd.grad(d_x.sum(), x, create_graph=True)[0] + \
-                    torch.autograd.grad(d_y.sum(), y, create_graph=True)[0] + \
-                    torch.autograd.grad(d_z.sum(), z, create_graph=True)[0]
+            # Calculate the Laplacian of u
+            laplace_u = torch.autograd.grad(d_x.sum(), x, create_graph=True)[0] + \
+                        torch.autograd.grad(d_y.sum(), y, create_graph=True)[0] + \
+                        torch.autograd.grad(d_z.sum(), z, create_graph=True)[0]
 
-        # Calculate the residual of the Helmholtz equation
-        pde_residual = laplace_u + (self.c / self.omega) ** 2 * u
+            # Calculate the residual of the Helmholtz equation
+            pde_residual = laplace_u - (1/self.c** 2)*d2u_dt2
 
         # Calculate the MSE loss of the Helmholtz equation residual
         mse_pde_loss = torch.mean(torch.abs(pde_residual) ** 2)
@@ -136,7 +141,7 @@ class CombinedLoss(nn.Module):
 
         self.data_loss_fn = DataTermLoss()
 
-    def forward(self, predictions, target, inputs, model_estimation):
+    def forward(self, predictions, target, inputs,time, model_estimation):
         """
         Forward pass of the CombinedLoss module.
 
@@ -156,7 +161,7 @@ class CombinedLoss(nn.Module):
         loss_pde = 0
         loss_bc = 0
         if self.pinn:
-            pde_loss = self.pde_loss_fn(inputs, model_estimation)
+            pde_loss = self.pde_loss_fn(inputs,time, model_estimation)
             bc_loss = self.bc_loss_fn(inputs,model_estimation)
             loss_pde = self.pde_weight * pde_loss
             loss_bc = self.bc_weight *bc_loss

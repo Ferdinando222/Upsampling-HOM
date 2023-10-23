@@ -33,7 +33,7 @@ class DataHandler:
         Y_data (torch.Tensor): Tensor containing the normalized output data for sampled points.
     """
 
-    def __init__(self, sofa_file_path, frequency):
+    def __init__(self, sofa_file_path):
         # INPUT AND OUTPUT DATA
         self.INPUT_DATA = None
         self.OUTPUT_DATA = None
@@ -63,7 +63,7 @@ class DataHandler:
         self.Y_data = None
 
         # Extract data from the SOFA file
-        self.extract_data(frequency, sofa_file_path)
+        self.extract_data(sofa_file_path)
 
         # Initialize sampled data to be the same as the full data
         self.INPUT_SAMPLED = self.INPUT_DATA
@@ -77,7 +77,7 @@ class DataHandler:
         # Create tensors for training
         self.create_tensors()
 
-    def extract_data(self, frequency, sofa_file_path):
+    def extract_data(self, sofa_file_path):
         """
         Extract acoustic data from a SOFA file.
 
@@ -89,11 +89,16 @@ class DataHandler:
         DRIR = io.read_SOFA_file(sofa_file_path)
         grid = DRIR.grid
 
-        # Calculate the index based on the given frequency
-        index = int(np.ceil((frequency / DRIR.signal.fs) * len(DRIR.signal[0])))
-
         # Extract the output data (FFT at the specified index)
-        self.OUTPUT_DATA = np.fft.fft(DRIR.signal.signal)[:, index]
+        self.OUTPUT_DATA = DRIR.signal.signal
+
+        # Extract time values
+        self.time_values = []
+
+        for sample_index in range(len(self.OUTPUT_DATA[0])):
+            time = sample_index / DRIR.signal.fs
+            self.time_values.append(time)
+
 
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
@@ -116,24 +121,18 @@ class DataHandler:
 
         The real and imaginary parts of the output data are normalized separately.
         """
-        def normalize(part,scaler):
-            scale = scaler.fit_transform(part.reshape(-1, 1))
-            return scale
 
-        real_part_sampled, real_part_data,real_part = np.real(self.OUTPUT_SAMPLED), np.real(self.OUTPUT_NOT_SAMPLED),np.real(self.OUTPUT_DATA)
-        imaginary_part_sampled, imaginary_part_data,imaginary_part = np.imag(self.OUTPUT_SAMPLED), np.imag(self.OUTPUT_NOT_SAMPLED),np.imag(self.OUTPUT_DATA)
+        max_out_s_p = np.max(np.abs(self.OUTPUT_SAMPLED))
+        max_out_ns_p = np.max(np.abs(self.OUTPUT_NOT_SAMPLED))
+        max_out = np.max(np.abs(self.OUTPUT_DATA))
 
-        normalized_real_sampled = normalize(real_part_sampled,gb.scaler_r_s)
-        normalized_real_not_sampled = normalize(real_part_data,gb.scaler_r_ns)
-        normalized_real_data = normalize(real_part,gb.scaler_r_d)
+        mean_out_s_p = np.mean(np.abs(self.OUTPUT_SAMPLED))
+        mean_out_ns_p = np.mean(np.abs(self.OUTPUT_NOT_SAMPLED))
+        mean_out = np.mean(np.abs(self.OUTPUT_DATA))
 
-        normalized_imaginary_sampled = normalize(imaginary_part_sampled,gb.scaler_i_s)
-        normalized_imaginary_not_sampled= normalize(imaginary_part_data,gb.scaler_i_ns)
-        normalized_imaginary_data = normalize(imaginary_part,gb.scaler_i_d)
-
-        self.NORMALIZED_OUTPUT_SAMPLED = normalized_real_sampled + 1j * normalized_imaginary_sampled
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED = normalized_real_not_sampled + 1j * normalized_imaginary_not_sampled
-        self.NORMALIZED_OUTPUT = normalized_real_data + 1j * normalized_imaginary_data
+        self.NORMALIZED_OUTPUT_SAMPLED = np.abs(self.OUTPUT_SAMPLED)/(mean_out_s_p**2) * np.exp(1j * np.angle(self.OUTPUT_SAMPLED))
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED = np.abs(self.OUTPUT_NOT_SAMPLED)/(mean_out_ns_p**2) * np.exp(1j * np.angle(self.OUTPUT_NOT_SAMPLED))
+        self.NORMALIZED_OUTPUT =np.abs(self.OUTPUT_DATA)/(mean_out**2) * np.exp(1j * np.angle(self.OUTPUT_DATA))
 
     def create_tensors(self):
         """
@@ -147,6 +146,7 @@ class DataHandler:
         self.Y_sampled = torch.tensor(self.NORMALIZED_OUTPUT_SAMPLED, dtype=torch.cfloat)
         self.Y_not_sampled = torch.tensor(self.NORMALIZED_OUTPUT_NOT_SAMPLED,dtype=torch.cfloat)
         self.Y_data = torch.tensor(self.NORMALIZED_OUTPUT, dtype=torch.cfloat)
+        self.time_values = torch.tensor(np.array(self.time_values),dtype=torch.float32)
 
         return self.X_sampled, self.X_not_sampled, self.Y_sampled,self.Y_not_sampled
 
@@ -201,9 +201,11 @@ class DataHandler:
             train_dataloader (DataLoader): DataLoader for training data.
             test_dataloader (DataLoader): DataLoader for validation data.
         """
-        dataset_sampled = list(zip(self.X_sampled, self.Y_sampled))
-        dataset_not_sampled = list(zip(self.X_not_sampled,self.Y_not_sampled))
-        train_dataloader = DataLoader(dataset_sampled, batch_size=batch_size, shuffle=True)
-        test_dataloader = DataLoader(dataset_not_sampled,batch_size=batch_size,shuffle=True)
+
+        print(self.time_values.shape)
+        dataset_sampled = list(zip(self.X_sampled,self.time_values.repeat(len(self.X_sampled),1),self.Y_sampled))
+        dataset_not_sampled = list(zip(self.X_not_sampled,self.time_values.repeat(len(self.X_not_sampled),1),self.Y_not_sampled))
+        train_dataloader = DataLoader(dataset_sampled, batch_size=batch_size, shuffle=False)
+        test_dataloader = DataLoader(dataset_not_sampled,batch_size=batch_size,shuffle=False)
 
         return train_dataloader,test_dataloader
