@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import global_variables as gb
 import loss_functions
+import numpy as np
 
 class PINN(nn.Module):
     """
@@ -33,7 +34,7 @@ class PINN(nn.Module):
 
         self.hidden_layers = nn.ModuleList([nn.Linear(hidden_size, hidden_size) for _ in range(layers)])
 
-        self.fc_out = nn.Linear(hidden_size, 2 * output_size)  # Output layer
+        self.fc_out = nn.Linear(hidden_size,  output_size)  # Output layer
 
         # Define the activation function (tanh)
         self.activation = nn.Tanh()
@@ -60,14 +61,12 @@ class PINN(nn.Module):
         for i in range(self.layers):
             hidden_layers = self.hidden_layers[i]
             x = self.activation(hidden_layers(x))
-        x = self.fc_out(x)
 
-        real_output, imag_output = x[:,0], x[:,1]
-        out = torch.complex(real_output, imag_output)
+        out = self.fc_out(x)
 
         return out
 
-    def train_epoch(self, loader, inputs_not_sampled, optimizer, data_weights, pde_weights,bc_weights, points_sampled, pinn=False):
+    def train_epoch(self, loader, inputs_not_sampled,temp, optimizer, data_weights, pde_weights,bc_weights, points_sampled, pinn=False):
         """
         Train the PINN model for one epoch.
 
@@ -94,20 +93,20 @@ class PINN(nn.Module):
         cum_loss_bc = []
         cum_loss = []
 
-        for _, (data,time, target) in enumerate(loader):
+        for _, (data,time, targets) in enumerate(loader):
             x = data[:, 0].to(gb.device)
             y = data[:, 1].to(gb.device)
             z = data[:, 2].to(gb.device)
 
             for i in range(len(time[0])):
-                t = time[:,i]
-                target = target[:,i]
+                t = time[:,i].to(gb.device)
+                target = targets[:,i]
                 target = target.to(gb.device)
 
                 optimizer.zero_grad()
                 predictions = self(x, y, z,t)
                 loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(data_weights, pde_weights,bc_weights, pinn)(predictions, target,
-                                                                                                        inputs_not_sampled,t,self)
+                                                                                                        inputs_not_sampled,temp,self)
 
                 cum_loss_data.append(loss_data)
                 cum_loss_pde.append(loss_pde)
@@ -141,12 +140,12 @@ class PINN(nn.Module):
                 z = data[:, 2].to(gb.device)
 
                 for i in range(len(time[0])):
-                    t = time[:,i]
-                    targets = targets[:,i]
-                    targets = targets.to(gb.device)
+                    t = time[:,i].to(gb.device)
+                    target = targets[:,i]
+                    target = target.to(gb.device)
                     predictions = self(x,y,z,t)
 
-                    loss= loss_functions.DataTermLoss()(predictions,targets)
+                    loss= loss_functions.DataTermLoss()(predictions,target)
                     batch_losses.append(loss)
         
 
@@ -169,7 +168,7 @@ class PINN(nn.Module):
         Returns:
             nmse_db (float): Normalized Mean Squared Error (NMSE) in decibels (dB).
         """
-        normalized_output_data = torch.tensor(data_handler.NORMALIZED_OUTPUT, dtype=torch.cfloat)
+        normalized_output_data = torch.tensor(data_handler.NORMALIZED_OUTPUT, dtype=torch.float64)
         X_data_not_sampled= data_handler.X_data
         time = data_handler.time_values.repeat(len(X_data_not_sampled),1)
         X_data_not_sampled = X_data_not_sampled.to(gb.device)
@@ -193,5 +192,8 @@ class PINN(nn.Module):
         z = input_data[:, 2].to(gb.device)
         for i in range(len(time[0])):
             t = time[:,i]
-            previsions.append(self(x,y,z,t))
+            previsions.append(self(x,y,z,t).cpu().detach().numpy())
+
+        previsions = np.array(previsions).reshape(-1,1)
+        previsions = torch.tensor(previsions,dtype=torch.float64)
         return previsions

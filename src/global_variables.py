@@ -3,7 +3,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 #GLOBAL VARIABLES
 frequency = 23000
-input_dim = 3 
+input_dim = 4
 scaler_r_s = MinMaxScaler()
 scaler_r_ns= MinMaxScaler()
 scaler_r_d = MinMaxScaler()

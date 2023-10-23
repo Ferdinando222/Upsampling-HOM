@@ -58,14 +58,19 @@ class HelmholtzLoss(nn.Module):
         x = inputs[:, 0].to(gb.device)
         y = inputs[:, 1].to(gb.device)
         z = inputs[:, 2].to(gb.device)
+    
 
         x = x.requires_grad_(True)
         y = y.requires_grad_(True)
         z = z.requires_grad_(True)
-        t = t.requires_grad_(True)
+
+        pde_loss = []
 
         for i in range(len(time[0])):
             t = time[:,i]
+            t = t.to(gb.device)
+            t = t.requires_grad_(True)
+
             u = model_estimation(x, y, z,t)
 
             # Calculate partial derivatives of u with respect to x, y, and z
@@ -73,7 +78,7 @@ class HelmholtzLoss(nn.Module):
             d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
             d_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
             d_t = torch.autograd.grad(u.sum(),t,create_graph=True)[0]
-            d2u_dt2 = torch.autograd.grad(d_t, t, create_graph=True)[0]
+            d2u_dt2 = torch.autograd.grad(d_t.sum(), t, create_graph=True)[0]
 
             # Calculate the Laplacian of u
             laplace_u = torch.autograd.grad(d_x.sum(), x, create_graph=True)[0] + \
@@ -83,29 +88,31 @@ class HelmholtzLoss(nn.Module):
             # Calculate the residual of the Helmholtz equation
             pde_residual = laplace_u - (1/self.c** 2)*d2u_dt2
 
-        # Calculate the MSE loss of the Helmholtz equation residual
-        mse_pde_loss = torch.mean(torch.abs(pde_residual) ** 2)
+            # Calculate the MSE loss of the Helmholtz equation residual
+            pde_loss.append(torch.mean(torch.abs(pde_residual) ** 2))
+        
+        mean_pde_loss = torch.mean(torch.tensor(pde_loss,dtype=torch.float64))
 
-        return mse_pde_loss
-
-    import numpy as np
+        return mean_pde_loss
 
 class BCLoss(nn.Module):
 
     def __init__(self):
         super(BCLoss, self).__init__()
 
-    def forward(self,inputs,model_estimation):
+    def forward(self,inputs,time,model_estimation):
 
         x = inputs[:, 0].to(gb.device)
         y = inputs[:, 1].to(gb.device)
         z = inputs[:, 2].to(gb.device)
+        t = time.to(gb.device)
 
         x = x.requires_grad_(True)
         y = y.requires_grad_(True)
         z = z.requires_grad_(True)
+        t = t.requires_grad_(True)
 
-        u = model_estimation(x, y, z)
+        u = model_estimation(x, y, z,t)
 
         d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
         d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
@@ -162,14 +169,14 @@ class CombinedLoss(nn.Module):
         loss_bc = 0
         if self.pinn:
             pde_loss = self.pde_loss_fn(inputs,time, model_estimation)
-            bc_loss = self.bc_loss_fn(inputs,model_estimation)
+            #bc_loss = self.bc_loss_fn(inputs,time,model_estimation)
             loss_pde = self.pde_weight * pde_loss
-            loss_bc = self.bc_weight *bc_loss
+            #loss_bc = self.bc_weight *bc_loss
 
         loss_data = self.data_weight * data_loss 
 
         # Calculate the combined loss
-        loss = loss_pde + loss_data + loss_bc
+        loss = loss_pde + loss_data 
 
         return loss, loss_data, loss_pde,loss_bc
 
@@ -187,6 +194,9 @@ def NMSE(normalized_output, predictions):
     """
     normalized_output = normalized_output.to(gb.device)
     predictions = predictions.to(gb.device)
+
+    print(normalized_output.shape)
+    print(predictions.shape)
 
     # Calculate Mean Squared Error (MSE)
     mse = torch.sum(torch.abs(normalized_output - predictions) ** 2)

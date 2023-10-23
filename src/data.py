@@ -99,7 +99,8 @@ class DataHandler:
             time = sample_index / DRIR.signal.fs
             self.time_values.append(time)
 
-
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,::100]
+        self.time_values = self.time_values[::100]
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
         self.colatitude = grid.colatitude
@@ -126,13 +127,17 @@ class DataHandler:
         max_out_ns_p = np.max(np.abs(self.OUTPUT_NOT_SAMPLED))
         max_out = np.max(np.abs(self.OUTPUT_DATA))
 
+        min_out_s_p = np.min(np.abs(self.OUTPUT_SAMPLED))
+        min_out_ns_p = np.min(np.abs(self.OUTPUT_NOT_SAMPLED))
+        min_out = np.min(np.abs(self.OUTPUT_DATA))
+
         mean_out_s_p = np.mean(np.abs(self.OUTPUT_SAMPLED))
         mean_out_ns_p = np.mean(np.abs(self.OUTPUT_NOT_SAMPLED))
         mean_out = np.mean(np.abs(self.OUTPUT_DATA))
 
-        self.NORMALIZED_OUTPUT_SAMPLED = np.abs(self.OUTPUT_SAMPLED)/(mean_out_s_p**2) * np.exp(1j * np.angle(self.OUTPUT_SAMPLED))
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED = np.abs(self.OUTPUT_NOT_SAMPLED)/(mean_out_ns_p**2) * np.exp(1j * np.angle(self.OUTPUT_NOT_SAMPLED))
-        self.NORMALIZED_OUTPUT =np.abs(self.OUTPUT_DATA)/(mean_out**2) * np.exp(1j * np.angle(self.OUTPUT_DATA))
+        self.NORMALIZED_OUTPUT_SAMPLED = (self.OUTPUT_SAMPLED-min_out_s_p)/(max_out_s_p-min_out_s_p)
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED = (self.OUTPUT_NOT_SAMPLED-min_out_ns_p)/(max_out_ns_p-min_out_ns_p)
+        self.NORMALIZED_OUTPUT =(self.OUTPUT_DATA-min_out)/(max_out-min_out)
 
     def create_tensors(self):
         """
@@ -143,9 +148,9 @@ class DataHandler:
         self.X_sampled = torch.tensor(self.INPUT_SAMPLED, dtype=torch.float32)
         self.X_not_sampled = torch.tensor(self.INPUT_NOT_SAMPLED, dtype=torch.float32)
         self.X_data = torch.tensor(self.INPUT_DATA, dtype=torch.float32)
-        self.Y_sampled = torch.tensor(self.NORMALIZED_OUTPUT_SAMPLED, dtype=torch.cfloat)
-        self.Y_not_sampled = torch.tensor(self.NORMALIZED_OUTPUT_NOT_SAMPLED,dtype=torch.cfloat)
-        self.Y_data = torch.tensor(self.NORMALIZED_OUTPUT, dtype=torch.cfloat)
+        self.Y_sampled = torch.tensor(self.NORMALIZED_OUTPUT_SAMPLED, dtype=torch.float64)
+        self.Y_not_sampled = torch.tensor(self.NORMALIZED_OUTPUT_NOT_SAMPLED,dtype=torch.float64)
+        self.Y_data = torch.tensor(self.NORMALIZED_OUTPUT, dtype=torch.float64)
         self.time_values = torch.tensor(np.array(self.time_values),dtype=torch.float32)
 
         return self.X_sampled, self.X_not_sampled, self.Y_sampled,self.Y_not_sampled

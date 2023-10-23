@@ -10,11 +10,12 @@ points_sampled =14
 data_handler.remove_points(2)
 train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
+time = data_handler.time_values.repeat(len(inputs_not_sampled),1)
 
 # %%
  #CREATE_NETWORK
 learning_rate = 0.1
-model = fnn.PINN(gb.input_dim,gb.output_dim,15,7)
+model = fnn.PINN(gb.input_dim,gb.output_dim,15,1)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -31,7 +32,7 @@ bc_weights = 0
 
 print(gb.device)
 for epoch in range(100000000):
-    loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,data_weights,pde_weights,bc_weights,points_sampled,pinn=pinn)
+    loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,time,optimizer,data_weights,pde_weights,bc_weights,points_sampled,pinn=pinn)
     val_loss = model.test_epoch(val_dataset)
 
     if epoch % 10 == 0:
@@ -64,14 +65,15 @@ import numpy as np
 # plot and NMSE of the model;
 nmse = best_model.test(data_handler)
 input_data = data_handler.X_data
+time = data_handler.time_values.repeat(len(input_data),1)
 input_data = input_data.to(gb.device)
-previsions_pinn = best_model.make_previsions(input_data)
-previsions_pinn = previsions_pinn.cpu().detach().numpy().flatten()
+previsions_pinn = best_model.make_previsions(input_data,time)
+previsions_pinn = previsions_pinn.cpu().detach().numpy()
 
 
 #%%
-previsions_pinn = np.squeeze(previsions_pinn)
-utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn)
+norm = data_handler.NORMALIZED_OUTPUT
+utils.plot_model(data_handler,previsions_pinn,points_sampled,time[0],pinn)
 
 # %%
 

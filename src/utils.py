@@ -5,17 +5,13 @@ from sound_field_analysis import utils
 import global_variables as gb
 from sklearn.preprocessing import MinMaxScaler
 
-def plot_model(data,previsions,points_sampled,pinn=False):
+def plot_model(data,previsions,points_sampled,t,pinn=False):
 
-    # prev_real = np.real(previsions)
-    # prev_imag = np.imag(previsions)
-    # original_real = gb.scaler_r_s.inverse_transform(prev_real)
-    # original_imag = gb.scaler_i_s.inverse_transform(prev_imag)
-    # previsions  = original_real + 1j * original_imag
     input_sampled = data.X_sampled
     x = input_sampled[:,0].cpu().detach().numpy()
     y =input_sampled[:,1].cpu().detach().numpy()
     z = input_sampled[:,2].cpu().detach().numpy()
+    time = t 
 
     azimuth_sampled,colatitude_sampled,_ = utils.cart2sph((x,y,z))
     microphone_positions = np.column_stack((azimuth_sampled, colatitude_sampled))
@@ -74,21 +70,19 @@ def plot_model(data,previsions,points_sampled,pinn=False):
     cbar2.set_ticks([-1,-0.5,0,0.5, 1])
     cbar2.set_ticklabels(['-1','-o.5','0', '0.5', '1'])
 
-    frequency_label = f"Frequenza: {gb.frequency} Hz"
-    ax.text(1, 0, frequency_label, transform=ax.transAxes, ha='right', va='bottom', color='black', fontsize=12)
-    ax1.text(1, 0, frequency_label, transform=ax1.transAxes, ha='right', va='bottom', color='black', fontsize=12)
+    time_label = f"Time: {time} s"
+    ax.text(1, 0, time_label, transform=ax.transAxes, ha='right', va='bottom', color='black', fontsize=12)
+    ax1.text(1, 0, time_label, transform=ax1.transAxes, ha='right', va='bottom', color='black', fontsize=12)
 
 
     if pinn:
-        plt.savefig(f"../src/image/Pinn_{points_sampled}_{gb.frequency}.png")
+        plt.savefig(f"../src/image/Pinn_{points_sampled}_{time}.png")
     else:
-        plt.savefig(f"../src/image/NoPinn_{points_sampled}_{gb.frequency}.png")
+        plt.savefig(f"../src/image/NoPinn_{points_sampled}_{time}.png")
 
     plt.show()
 
 
-def inverse_normalize(part, min,max):
-    return gb.scaler.inverse_transform(part.reshape(-1, 1)).flatten()
 
 
 
