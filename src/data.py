@@ -53,6 +53,7 @@ class DataHandler:
         self.azimuth = None
         self.colatitude = None
         self.radius = None
+        self.frequencies = None
         #TENSORS
         self.X_sampled = None
         self.X_not_sampled = None
@@ -92,10 +93,15 @@ class DataHandler:
         self.OUTPUT_DATA = np.fft.fft(DRIR.signal.signal)
 
         n = len(self.OUTPUT_DATA[0])
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
+
+        self.frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)
         # Calculate the index based on the given frequency
         index = int(np.ceil((frequency / DRIR.signal.fs) * len(self.OUTPUT_DATA[0])))
 
+        print(self.frequencies[index])
+
+        gb.frequency = self.frequencies[index]
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
         self.OUTPUT_DATA = self.OUTPUT_DATA[:,index]
 
         # Extract spherical coordinates
@@ -128,9 +134,13 @@ class DataHandler:
         max_out_ns_p = np.max(np.abs(self.OUTPUT_NOT_SAMPLED))
         max_out = np.max(np.abs(self.OUTPUT_DATA))
 
-        self.NORMALIZED_OUTPUT_SAMPLED =out_s_p/max_out_s_p
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED =out_ns_p/max_out_ns_p
-        self.NORMALIZED_OUTPUT =out/max_out
+        mean_out_s_p = np.mean(np.abs(self.OUTPUT_SAMPLED))
+        mean_out_ns_p = np.mean(np.abs(self.OUTPUT_NOT_SAMPLED))
+        mean_out = np.mean(np.abs(self.OUTPUT_DATA))
+
+        self.NORMALIZED_OUTPUT_SAMPLED = np.abs(self.OUTPUT_SAMPLED)/(mean_out_s_p**2) * np.exp(1j * np.angle(self.OUTPUT_SAMPLED))
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED = np.abs(self.OUTPUT_NOT_SAMPLED)/(mean_out_ns_p**2) * np.exp(1j * np.angle(self.OUTPUT_NOT_SAMPLED))
+        self.NORMALIZED_OUTPUT =np.abs(self.OUTPUT_DATA)/(mean_out**2) * np.exp(1j * np.angle(self.OUTPUT_DATA))
 
 
     def create_tensors(self):

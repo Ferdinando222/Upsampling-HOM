@@ -24,17 +24,16 @@ class PINN(nn.Module):
         hidden_size (int): Size of the hidden layers.
     """
 
-    def __init__(self, input_size, output_size, hidden_size):
+    def __init__(self, input_size, output_size, hidden_size,layers=5):
         super(PINN, self).__init__()
 
         # Define the layers for the real part
-        self.fc1 = nn.Linear(input_size, hidden_size, bias=False)
-        self.fc2 = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.fc3 = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.fc4 = nn.Linear(hidden_size, hidden_size)  # New hidden layer
-        self.fc5 = nn.Linear(hidden_size, hidden_size)  # New hidden layer
-        self.fc6 = nn.Linear(hidden_size, hidden_size)  # New hidden layer
-        self.fc7 = nn.Linear(hidden_size, 2 * output_size)  # Output layer
+        self.layers = layers
+        self.fc_in = nn.Linear(input_size, hidden_size)
+
+        self.hidden_layers = nn.ModuleList([nn.Linear(hidden_size, hidden_size) for _ in range(layers)])
+
+        self.fc_out = nn.Linear(hidden_size, 2 * output_size)  # Output layer
 
         # Define the activation function (tanh)
         self.activation = nn.Tanh()
@@ -56,13 +55,12 @@ class PINN(nn.Module):
         x = torch.stack([x, y, z], dim=1).to(gb.device)
 
         # Forward pass through the deep network
-        x = self.activation(self.fc1(x))
-        x = self.activation(self.fc2(x))
-        x = self.activation(self.fc3(x))
-        x = self.activation(self.fc4(x))
-        x = self.activation(self.fc5(x))
-        x = self.activation(self.fc6(x))
-        x = self.fc7(x)
+        x = self.activation(self.fc_in(x))
+
+        for i in range(self.layers):
+            hidden_layers = self.hidden_layers[i]
+            x = self.activation(hidden_layers(x))
+        x = self.fc_out(x)
 
         real_output, imag_output = x[:,0], x[:,1]
         out = torch.complex(real_output, imag_output)

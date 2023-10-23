@@ -2,7 +2,7 @@ import torch
 from sklearn.preprocessing import MinMaxScaler
 
 #GLOBAL VARIABLES
-frequency = 400
+frequency = 2000
 input_dim = 3 
 scaler_r_s = MinMaxScaler()
 scaler_r_ns= MinMaxScaler()
