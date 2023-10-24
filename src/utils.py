@@ -4,13 +4,13 @@ import matplotlib.colors as mcolors
 from sound_field_analysis import utils
 import global_variables as gb
 
-def plot_model(data,previsions,points_sampled,index,pinn=False):
+def plot_model(data,previsions,points_sampled,freq,index,pinn=False):
 
     input_sampled = data.X_sampled
-    x = input_sampled[:,0,0].cpu().detach().numpy()
-    y =input_sampled[:,0,1].cpu().detach().numpy()
-    z = input_sampled[:,0,2].cpu().detach().numpy()
-    f = np.ceil(input_sampled[0,index,3].cpu().detach().numpy())
+    x = input_sampled[:,0].cpu().detach().numpy()
+    y =input_sampled[:,1].cpu().detach().numpy()
+    z = input_sampled[:,2].cpu().detach().numpy()
+    f = freq[index]*23999
     
     azimuth_sampled,colatitude_sampled,_ = utils.cart2sph((x,y,z))
     microphone_positions = np.column_stack((azimuth_sampled, colatitude_sampled))

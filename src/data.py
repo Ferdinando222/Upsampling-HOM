@@ -62,7 +62,7 @@ class DataHandler:
         self.Y_data = None
 
         # Extract data from the SOFA file
-        self.extract_data(frequency, sofa_file_path)
+        self.extract_data(sofa_file_path)
 
         # Initialize sampled data to be the same as the full data
         self.INPUT_SAMPLED = self.INPUT_DATA
@@ -76,7 +76,7 @@ class DataHandler:
         # Create tensors for training
         self.create_tensors()
 
-    def extract_data(self, frequency, sofa_file_path):
+    def extract_data(self, sofa_file_path):
         """
         Extract acoustic data from a SOFA file.
 
@@ -94,9 +94,11 @@ class DataHandler:
         n = len(self.OUTPUT_DATA[0])
         self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
 
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,35]
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,99:101]
 
-        self.frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)
+        self.frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)[:n//2]
+        self.frequencies = self.frequencies[99:101]
+        self.frequencies = (self.frequencies) / (23999)
 
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
@@ -128,9 +130,13 @@ class DataHandler:
         max_out_ns_p = np.max(np.abs(self.OUTPUT_NOT_SAMPLED))
         max_out = np.max(np.abs(self.OUTPUT_DATA))
 
-        self.NORMALIZED_OUTPUT_SAMPLED =out_s_p/max_out_s_p
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED =out_ns_p/max_out_ns_p
-        self.NORMALIZED_OUTPUT =out/max_out
+        mean_out_s_p = np.mean(np.abs(self.OUTPUT_SAMPLED))
+        mean_out_ns_p = np.mean(np.abs(self.OUTPUT_NOT_SAMPLED))
+        mean_out = np.mean(np.abs(self.OUTPUT_DATA))
+
+        self.NORMALIZED_OUTPUT_SAMPLED =out_s_p/mean_out_s_p
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED =out_ns_p/mean_out_ns_p
+        self.NORMALIZED_OUTPUT =out/mean_out
 
 
     def create_tensors(self):
@@ -145,6 +151,7 @@ class DataHandler:
         self.Y_sampled = torch.tensor(self.NORMALIZED_OUTPUT_SAMPLED, dtype=torch.cfloat)
         self.Y_not_sampled = torch.tensor(self.NORMALIZED_OUTPUT_NOT_SAMPLED,dtype=torch.cfloat)
         self.Y_data = torch.tensor(self.NORMALIZED_OUTPUT, dtype=torch.cfloat)
+        self.frequencies = torch.tensor(np.array(self.frequencies),dtype=torch.float32)
 
         return self.X_sampled, self.X_not_sampled, self.Y_sampled,self.Y_not_sampled
 
@@ -199,9 +206,9 @@ class DataHandler:
             train_dataloader (DataLoader): DataLoader for training data.
             test_dataloader (DataLoader): DataLoader for validation data.
         """
-        dataset_sampled = list(zip(self.X_sampled, self.Y_sampled))
-        dataset_not_sampled = list(zip(self.X_not_sampled,self.Y_not_sampled))
-        train_dataloader = DataLoader(dataset_sampled, batch_size=batch_size, shuffle=True)
-        test_dataloader = DataLoader(dataset_not_sampled,batch_size=batch_size,shuffle=True)
+        dataset_sampled = list(zip(self.X_sampled,self.frequencies.repeat(len(self.X_sampled),1),self.Y_sampled))
+        dataset_not_sampled = list(zip(self.X_not_sampled,self.frequencies.repeat(len(self.X_not_sampled),1),self.Y_not_sampled))
+        train_dataloader = DataLoader(dataset_sampled, batch_size=batch_size, shuffle=False)
+        test_dataloader = DataLoader(dataset_not_sampled,batch_size=batch_size,shuffle=False)
 
         return train_dataloader,test_dataloader
