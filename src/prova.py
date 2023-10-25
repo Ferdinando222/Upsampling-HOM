@@ -6,15 +6,17 @@ import torch.optim as optim
 
 path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
 data_handler = dt.DataHandler(path_data,gb.frequency)
-points_sampled =14
-data_handler.remove_points(2)
+data_handler.remove_points(11)
+points_sampled =len(data_handler.INPUT_SAMPLED)
+gb.points_sampled = points_sampled
+print(points_sampled)
 train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 
 # %%
  #CREATE_NETWORK
 learning_rate = 0.1
-model = fnn.PINN(gb.input_dim,gb.output_dim,15,7)
+model = fnn.PINN(gb.input_dim,gb.output_dim,22,1)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -26,7 +28,7 @@ patience = 1000
 counter = 0
 
 data_weights = 1
-pde_weights = 1
+pde_weights = 0.00001
 bc_weights = 0
 
 print(gb.device)

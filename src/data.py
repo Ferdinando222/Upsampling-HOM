@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 import global_variables as gb
+import math
 
 class DataHandler:
     """
@@ -134,13 +135,18 @@ class DataHandler:
         max_out_ns_p = np.max(np.abs(self.OUTPUT_NOT_SAMPLED))
         max_out = np.max(np.abs(self.OUTPUT_DATA))
 
+        
+        min_out_s_p = np.min(np.abs(self.OUTPUT_SAMPLED))
+        min_out_ns_p = np.min(np.abs(self.OUTPUT_NOT_SAMPLED))
+        min_out = np.min(np.abs(self.OUTPUT_DATA))
+
         mean_out_s_p = np.mean(np.abs(self.OUTPUT_SAMPLED))
         mean_out_ns_p = np.mean(np.abs(self.OUTPUT_NOT_SAMPLED))
         mean_out = np.mean(np.abs(self.OUTPUT_DATA))
 
-        self.NORMALIZED_OUTPUT_SAMPLED = np.abs(self.OUTPUT_SAMPLED)/(mean_out_s_p**2) * np.exp(1j * np.angle(self.OUTPUT_SAMPLED))
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED = np.abs(self.OUTPUT_NOT_SAMPLED)/(mean_out_ns_p**2) * np.exp(1j * np.angle(self.OUTPUT_NOT_SAMPLED))
-        self.NORMALIZED_OUTPUT =np.abs(self.OUTPUT_DATA)/(mean_out**2) * np.exp(1j * np.angle(self.OUTPUT_DATA))
+        self.NORMALIZED_OUTPUT_SAMPLED = np.abs(self.OUTPUT_SAMPLED)/(max_out_s_p) * np.exp(1j * np.angle(self.OUTPUT_SAMPLED))
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED = np.abs(self.OUTPUT_NOT_SAMPLED)/(max_out_ns_p) * np.exp(1j * np.angle(self.OUTPUT_NOT_SAMPLED))
+        self.NORMALIZED_OUTPUT =np.abs(self.OUTPUT_DATA)/(max_out) * np.exp(1j * np.angle(self.OUTPUT_DATA))
 
 
     def create_tensors(self):
@@ -165,6 +171,11 @@ class DataHandler:
         Args:
             points_sampled (int): Number of sampled points to keep.
         """
+
+        def distance(point1, point2):
+            # Calcola la distanza euclidea tra due punti in uno spazio tridimensionale
+            return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+
         mic = np.column_stack((self.azimuth, self.colatitude))
 
         grid_under = gen.lebedev(order)
@@ -173,16 +184,17 @@ class DataHandler:
         mic_under = np.column_stack((az_und, col_und))
 
         matching_indices = []
+        
+    
+        for item in mic_under:
+            min_distance = np.infty
+            for i,item1 in enumerate(mic):
+                dist = distance(item,item1)
+                if dist < min_distance:
+                    min_distance = dist
+                    number = i
 
-        # Scansiona gli elementi di mic_under
-        for i,item in enumerate(mic):
-            item = np.round(item,6)
-            for position in mic_under:
-                position = np.round(position,6)
-                
-                if np.array_equal(position,item):
-                    matching_indices.append(i)
-                    break
+            matching_indices.append(number)
 
         self.INPUT_SAMPLED = [item for i, item in enumerate(self.INPUT_DATA) if i  in matching_indices]
         self.OUTPUT_SAMPLED =[item for i, item in enumerate(self.OUTPUT_DATA) if i  in matching_indices]
@@ -191,8 +203,8 @@ class DataHandler:
         self.OUTPUT_NOT_SAMPLED = np.delete(self.OUTPUT_DATA, matching_indices, axis=0)
 
         # Check input and ouput have the same size of points_sampled
-        assert len(self.INPUT_SAMPLED) == len(self.OUTPUT_SAMPLED) == 14, "Input and output sizes do not match points_sampled"
-        assert len(self.INPUT_NOT_SAMPLED) == len(self.OUTPUT_NOT_SAMPLED) == (len(self.INPUT_DATA)-14)
+        assert len(self.INPUT_SAMPLED) == len(self.OUTPUT_SAMPLED) == len(mic_under) 
+        assert len(self.INPUT_NOT_SAMPLED) == len(self.OUTPUT_NOT_SAMPLED) == (len(self.INPUT_DATA)-len(mic_under))
 
         # Normalize and create tensors
         self.normalize_data()
