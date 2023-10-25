@@ -21,8 +21,8 @@ def plot_model(data,previsions,points_sampled,t,pinn=False):
     print(pressure_difference.shape)
 
     fig, (ax,ax1,ax2) = plt.subplots(1, 3, figsize=(12, 5))
-    sc = ax.scatter(data.azimuth, data.colatitude, c=np.abs(previsions), cmap='viridis')
-    sc1 = ax1.scatter(data.azimuth, data.colatitude, c=np.abs(data.NORMALIZED_OUTPUT), cmap='viridis')
+    sc = ax.scatter(data.azimuth, data.colatitude, c=np.abs(previsions), cmap='viridis',vmax=1,vmin=0)
+    sc1 = ax1.scatter(data.azimuth, data.colatitude, c=np.abs(data.NORMALIZED_OUTPUT), cmap='viridis',vmax=1,vmin=0)
     
     cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', [(1, 0, 0),(1, 1, 1), (1, 0, 1)], N=256)
     sc2 = ax2.scatter(data.azimuth, data.colatitude, c=pressure_difference, cmap=cmap,vmax=1,vmin=-1)

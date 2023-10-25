@@ -6,8 +6,8 @@ import torch.optim as optim
 
 path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
 data_handler = dt.DataHandler(path_data)
-points_sampled =14
-data_handler.remove_points(2)
+points_sampled =38
+data_handler.remove_points(4)
 train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 time = data_handler.time_values.repeat(len(inputs_not_sampled),1)
@@ -20,7 +20,7 @@ model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-pinn=True
+pinn=False
 
 best_val_loss = float('inf')
 patience = 1000
@@ -74,46 +74,6 @@ previsions_pinn = previsions_pinn.cpu().detach().numpy()
 #%%
 norm = data_handler.NORMALIZED_OUTPUT
 utils.plot_model(data_handler,previsions_pinn,points_sampled,time[0],pinn)
-
-# %%
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Estrai la parte reale e la parte immaginaria
-real_parts = [z.real for z in data_handler.NORMALIZED_OUTPUT]
-imaginary_parts = [z.imag for z in data_handler.NORMALIZED_OUTPUT]
-
-
-real_parts_sampled = [z.real for z in data_handler.NORMALIZED_OUTPUT_SAMPLED]
-imaginary_parts_sampled= [z.imag for z in data_handler.NORMALIZED_OUTPUT_SAMPLED]
-# Crea un diagramma sul piano complesso
-
-real_parts_previsions = [z.real for z in previsions_pinn]
-imaginary_parts_previsions = [z.imag for z in previsions_pinn]
-
-plt.figure(figsize=(8, 8))
-plt.scatter(real_parts, imaginary_parts, color='blue', marker='o')
-plt.scatter(real_parts_previsions, imaginary_parts_previsions, color='red', marker='x', label='Previsioni')
-plt.scatter(real_parts_sampled, imaginary_parts_sampled, color='black', marker='o', label='SAMPLING')
-
-# Etichette degli assi
-plt.xlabel('Parte Reale')
-plt.ylabel('Parte Immaginaria')
-
-# Titolo del grafico
-plt.title('Numeri Complessi sul Piano Complesso')
-
-# Visualizza il grafico
-plt.grid()
-plt.axhline(0, color='black', lw=0.5)
-plt.axvline(0, color='black', lw=0.5)
-plt.show()
-
-
-
-
-
 
 
 # %%
