@@ -40,7 +40,7 @@ class PINN(nn.Module):
         self.activation = nn.Tanh()
         self.hidden_size = hidden_size
 
-    def forward(self, x, y, z,t):
+    def forward(self, x, y, z):
         """
         Forward pass of the PINN model.
 
@@ -53,7 +53,7 @@ class PINN(nn.Module):
             out (torch.Tensor): Complex-valued output.
         """
 
-        x = torch.stack([x, y, z,t], dim=1).to(gb.device)
+        x = torch.stack([x, y, z], dim=1).to(gb.device)
 
         # Forward pass through the deep network
         x = self.activation(self.fc_in(x))
@@ -104,7 +104,7 @@ class PINN(nn.Module):
                 target = target.to(gb.device)
 
                 optimizer.zero_grad()
-                predictions = self(x, y, z,t)
+                predictions = self(x, y, z)
                 loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(data_weights, pde_weights,bc_weights, pinn)(predictions, target,
                                                                                                         inputs_not_sampled,temp,self)
 
@@ -143,7 +143,7 @@ class PINN(nn.Module):
                     t = time[:,i].to(gb.device)
                     target = targets[:,i]
                     target = target.to(gb.device)
-                    predictions = self(x,y,z,t)
+                    predictions = self(x,y,z)
 
                     loss= loss_functions.DataTermLoss()(predictions,target)
                     batch_losses.append(loss)
@@ -192,7 +192,7 @@ class PINN(nn.Module):
         z = input_data[:, 2].to(gb.device)
         for i in range(len(time[0])):
             t = time[:,i]
-            previsions.append(self(x,y,z,t).cpu().detach().numpy())
+            previsions.append(self(x,y,z).cpu().detach().numpy())
 
         previsions = np.array(previsions).reshape(-1,1)
         previsions = torch.tensor(previsions,dtype=torch.float64)

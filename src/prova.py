@@ -7,7 +7,7 @@ import torch.optim as optim
 path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
 data_handler = dt.DataHandler(path_data)
 points_sampled =38
-data_handler.remove_points(4)
+data_handler.remove_points(11)
 train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 time = data_handler.time_values.repeat(len(inputs_not_sampled),1)
@@ -15,7 +15,7 @@ time = data_handler.time_values.repeat(len(inputs_not_sampled),1)
 # %%
  #CREATE_NETWORK
 learning_rate = 0.1
-model = fnn.PINN(gb.input_dim,gb.output_dim,15,1)
+model = fnn.PINN(gb.input_dim,gb.output_dim,22,1)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -23,7 +23,7 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 pinn=False
 
 best_val_loss = float('inf')
-patience = 1000
+patience = 200
 counter = 0
 
 data_weights = 1
@@ -46,7 +46,7 @@ for epoch in range(100000000):
         counter = 0
     else:
         counter += 1
-        if(counter %500 == 0):
+        if(counter %50 == 0):
             learning_rate = learning_rate/5
             optimizer = optim.Adam(model.parameters(), lr=learning_rate)
             print(f"Decrease learning rate {learning_rate} epochs.")

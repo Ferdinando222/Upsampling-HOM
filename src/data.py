@@ -124,13 +124,13 @@ class DataHandler:
         The real and imaginary parts of the output data are normalized separately.
         """
 
-        max_out_s_p = np.max(np.abs(self.OUTPUT_SAMPLED))
-        max_out_ns_p = np.max(np.abs(self.OUTPUT_NOT_SAMPLED))
-        max_out = np.max(np.abs(self.OUTPUT_DATA))
+        max_out_s_p = np.max(self.OUTPUT_SAMPLED)
+        max_out_ns_p = np.max(self.OUTPUT_NOT_SAMPLED)
+        max_out = np.max(self.OUTPUT_DATA)
 
-        min_out_s_p = np.min(np.abs(self.OUTPUT_SAMPLED))
-        min_out_ns_p = np.min(np.abs(self.OUTPUT_NOT_SAMPLED))
-        min_out = np.min(np.abs(self.OUTPUT_DATA))
+        min_out_s_p = np.min(self.OUTPUT_SAMPLED)
+        min_out_ns_p = np.min(self.OUTPUT_NOT_SAMPLED)
+        min_out = np.min(self.OUTPUT_DATA)
 
         mean_out_s_p = np.mean(np.abs(self.OUTPUT_SAMPLED))
         mean_out_ns_p = np.mean(np.abs(self.OUTPUT_NOT_SAMPLED))
