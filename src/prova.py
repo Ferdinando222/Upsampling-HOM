@@ -7,7 +7,7 @@ import torch.optim as optim
 path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
 data_handler = dt.DataHandler(path_data,gb.frequency)
 points_sampled =14
-data_handler.remove_points(2)
+data_handler.remove_points(4)
 train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 freq = data_handler.frequencies.repeat(len(inputs_not_sampled),1)
@@ -17,7 +17,7 @@ freq = data_handler.frequencies.repeat(len(inputs_not_sampled),1)
 
 print(gb.device)
 learning_rate = 0.1
-model = fnn.PINN(gb.input_dim,gb.output_dim,22,1)
+model = fnn.PINN(gb.input_dim,gb.output_dim,30,2)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -50,7 +50,7 @@ for epoch in range(1000000):
         counter += 1
         if(counter %50 == 0):
             learning_rate = learning_rate/10
-            optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
             print(f"Decrease learning rate {learning_rate} epochs.")
                   
     if counter >= patience:
@@ -69,7 +69,7 @@ nmse = best_model.test(data_handler)
 input_data = data_handler.X_data
 input_data = input_data.to(gb.device)
 previsions_pinn = best_model.make_previsions(input_data,freq)
-index = 0
+index = 1
 previsions_pinn = previsions_pinn.cpu().detach().numpy()[:,index]
 
 #%%

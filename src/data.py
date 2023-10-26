@@ -94,10 +94,10 @@ class DataHandler:
         n = len(self.OUTPUT_DATA[0])
         self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
 
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,99:101]
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,:1000:100]
 
         self.frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)[:n//2]
-        self.frequencies = self.frequencies[99:101]
+        self.frequencies = self.frequencies[:1000:100]
         self.frequencies = (self.frequencies) / (23999)
 
         # Extract spherical coordinates
@@ -134,9 +134,9 @@ class DataHandler:
         mean_out_ns_p = np.mean(np.abs(self.OUTPUT_NOT_SAMPLED))
         mean_out = np.mean(np.abs(self.OUTPUT_DATA))
 
-        self.NORMALIZED_OUTPUT_SAMPLED =out_s_p/mean_out_s_p
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED =out_ns_p/mean_out_ns_p
-        self.NORMALIZED_OUTPUT =out/mean_out
+        self.NORMALIZED_OUTPUT_SAMPLED =out_s_p/max_out_s_p
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED =out_ns_p/max_out_ns_p
+        self.NORMALIZED_OUTPUT =out/max_out
 
 
     def create_tensors(self):
