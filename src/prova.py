@@ -7,7 +7,7 @@ import torch.optim as optim
 path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
 data_handler = dt.DataHandler(path_data)
 points_sampled =38
-data_handler.remove_points(11)
+data_handler.remove_points(2)
 train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 time = data_handler.time_values.repeat(len(inputs_not_sampled),1)

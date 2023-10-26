@@ -217,7 +217,7 @@ class DataHandler:
         print(self.time_values.shape)
         dataset_sampled = list(zip(self.X_sampled,self.time_values.repeat(len(self.X_sampled),1),self.Y_sampled))
         dataset_not_sampled = list(zip(self.X_not_sampled,self.time_values.repeat(len(self.X_not_sampled),1),self.Y_not_sampled))
-        train_dataloader = DataLoader(dataset_sampled, batch_size=batch_size, shuffle=False)
-        test_dataloader = DataLoader(dataset_not_sampled,batch_size=batch_size,shuffle=False)
+        train_dataloader = DataLoader(dataset_sampled, batch_size=batch_size, shuffle=True)
+        test_dataloader = DataLoader(dataset_not_sampled,batch_size=batch_size,shuffle=True)
 
         return train_dataloader,test_dataloader
