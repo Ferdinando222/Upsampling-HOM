@@ -13,10 +13,11 @@ sweep_configuration = {
     "name": "Training pinn with different hidden size",
     "metric": {"goal": "minimize", "name": "nmse"},
     "parameters": {
-        "batch_size": {"values": [16,30,64]},
+        "batch_size": {"values": [16]},
         "learning_rate": {"values":[0.01]},
         "hidden_size":{"values":[22]},
-        #"pde_weights":{"max":100.0,"min":0.1},
+        "layer":{"values":[1]},
+        "pde_weights":{"values":[0.01,0.001,0.0001]},
         #"data_weights":{"max":2.0,"min":0.001}
     },
 }
@@ -35,21 +36,23 @@ def train():
 
         #HYPERPARAMETERS
         hidden_size = wandb.config.hidden_size
+        layers = 1
         batch_size = wandb.config.batch_size
         learning_rate = wandb.config.learning_rate
         data_weights = 1
-        pde_weights =1
         bc_weights=0
+        frequency = 200
 
         #CREATE DATASET
         path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
-        data_handler = dt.DataHandler(path_data,gb.frequency)
-        points_sampled =14
-        data_handler.remove_points(2)
+        data_handler = dt.DataHandler(path_data,frequency)
+        data_handler.remove_points(4)
+        points_sampled =len(data_handler.INPUT_SAMPLED)
+        gb.points_sampled = points_sampled
         train_dataset,val_dataset = data_handler.data_loader(batch_size)
 
         #CREATE_NETWORK
-        model = fnn.PINN(gb.input_dim,gb.output_dim,hidden_size)
+        model = fnn.PINN(gb.input_dim,gb.output_dim,hidden_size,layers)
         model = model.to(gb.device)
 
         #CREATE OPTIMIZER
@@ -68,11 +71,11 @@ def train():
 
         # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 200
+        patience = 2000
         counter = 0
         
         for epoch in range(epochs):
-            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,data_weights,pde_weights,bc_weights,points_sampled,pinn=pinn)
+            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,data_weights,wandb.config.pde_weights,bc_weights,points_sampled,pinn=pinn)
             val_loss = model.test_epoch(val_dataset)
 
             wandb.log({
@@ -94,14 +97,15 @@ def train():
                 counter = 0
             else:
                 counter += 1
-                if(counter== 100):
-                    learning_rate = learning_rate
+                if(counter == 200):
+                    #learning_rate = learning_rate/10
                     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
                     print(f"Decrease learning rate {learning_rate} epochs.")
 
             if counter >= patience:
                 print(f"Early stopping after {epoch + 1} epochs.")
                 counter=0
+                break
     
 
         nmse = best_model.test(data_handler)

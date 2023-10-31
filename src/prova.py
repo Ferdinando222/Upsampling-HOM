@@ -5,17 +5,18 @@ import fnn
 import torch.optim as optim
 
 path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
-data_handler = dt.DataHandler(path_data,gb.frequency)
-data_handler.remove_points(11)
+frequency = 200
+data_handler = dt.DataHandler(path_data,frequency)
+data_handler.remove_points(4)
 points_sampled =len(data_handler.INPUT_SAMPLED)
 gb.points_sampled = points_sampled
 print(points_sampled)
-train_dataset,val_dataset = data_handler.data_loader(128)
+train_dataset,val_dataset = data_handler.data_loader(16)
 inputs_not_sampled= data_handler.X_data
 
 # %%
  #CREATE_NETWORK
-learning_rate = 0.1
+learning_rate = 0.001
 model = fnn.PINN(gb.input_dim,gb.output_dim,22,1)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
@@ -24,11 +25,11 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 pinn=True
 
 best_val_loss = float('inf')
-patience = 1000
+patience = 2000
 counter = 0
 
 data_weights = 1
-pde_weights = 0.00001
+pde_weights = 0.01
 bc_weights = 0
 
 print(gb.device)
@@ -47,13 +48,14 @@ for epoch in range(100000000):
         counter = 0
     else:
         counter += 1
-        if(counter %500 == 0):
-            learning_rate = learning_rate/5
-            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        if(counter %1000 == 0):
+            learning_rate = learning_rate/10
+            #optimizer = optim.Adam(model.parameters(), lr=learning_rate)
             print(f"Decrease learning rate {learning_rate} epochs.")
                   
     if counter >= patience:
         print(f"Early stopping after {epoch + 1} epochs.")
+        counter = 0
         break
 
         
