@@ -9,7 +9,7 @@ import global_variables as gb
 
 # Define sweep config
 sweep_configuration = {
-    "method": "grid",
+    "method": "bayes",
     "name": "Training pinn with different hidden size",
     "metric": {"goal": "minimize", "name": "nmse"},
     "parameters": {
@@ -17,7 +17,7 @@ sweep_configuration = {
         "learning_rate": {"values":[0.01]},
         "hidden_size":{"values":[22]},
         "layer":{"values":[1]},
-        "pde_weights":{"values":[0.01,0.001,0.0001]},
+        "pde_weights":{"max":0.001,"min":0.00001},
         #"data_weights":{"max":2.0,"min":0.001}
     },
 }
@@ -41,7 +41,7 @@ def train():
         learning_rate = wandb.config.learning_rate
         data_weights = 1
         bc_weights=0
-        frequency = 200
+        frequency = 400
 
         #CREATE DATASET
         path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
@@ -71,7 +71,7 @@ def train():
 
         # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 2000
+        patience = 5000
         counter = 0
         
         for epoch in range(epochs):

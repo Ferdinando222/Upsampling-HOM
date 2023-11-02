@@ -25,11 +25,11 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 pinn=True
 
 best_val_loss = float('inf')
-patience = 2000
+patience = 400
 counter = 0
 
 data_weights = 1
-pde_weights = 0.01
+pde_weights = 0.001
 bc_weights = 0
 
 print(gb.device)
@@ -48,7 +48,7 @@ for epoch in range(100000000):
         counter = 0
     else:
         counter += 1
-        if(counter %1000 == 0):
+        if(counter %200 == 0 and learning_rate> 0.0001):
             learning_rate = learning_rate/10
             #optimizer = optim.Adam(model.parameters(), lr=learning_rate)
             print(f"Decrease learning rate {learning_rate} epochs.")
