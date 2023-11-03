@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import global_variables as gb
 import loss_functions
+from siren import SIREN
 
 class PINN(nn.Module):
     """
@@ -24,20 +25,17 @@ class PINN(nn.Module):
         hidden_size (int): Size of the hidden layers.
     """
 
-    def __init__(self, input_size, output_size, hidden_size,layers=5):
+    def __init__(self, input_size, output_size, hidden_size,layers=5,w0=1.0,w0_init=10.0,c=6.0):
         super(PINN, self).__init__()
 
-        # Define the layers for the real part
-        self.layers = layers
-        self.fc_in = nn.Linear(input_size, hidden_size)
-
-        self.hidden_layers = nn.ModuleList([nn.Linear(hidden_size, hidden_size) for _ in range(layers)])
-
-        self.fc_out = nn.Linear(hidden_size, 2 * output_size)  # Output layer
-
-        # Define the activation function (tanh)
-        self.activation = nn.Tanh()
-        self.hidden_size = hidden_size
+        self.network = SIREN(
+            layers=[hidden_size] * layers,
+            in_features=input_size,
+            out_features=2 * output_size,
+            w0=w0,
+            w0_initial=w0_init,
+            c=c
+        )
 
     def forward(self, x, y, z):
         """
@@ -55,13 +53,7 @@ class PINN(nn.Module):
         x = torch.stack([x, y, z], dim=1).to(gb.device)
 
         # Forward pass through the deep network
-        x = self.activation(self.fc_in(x))
-
-        for i in range(self.layers):
-            hidden_layers = self.hidden_layers[i]
-            x = self.activation(hidden_layers(x))
-        x = self.fc_out(x)
-
+        x = self.network(x)
         real_output, imag_output = x[:,0], x[:,1]
         out = torch.complex(real_output, imag_output)
         return out
