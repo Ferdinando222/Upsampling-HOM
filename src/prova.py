@@ -11,7 +11,7 @@ data_handler.remove_points(4)
 points_sampled =len(data_handler.INPUT_SAMPLED)
 gb.points_sampled = points_sampled
 print(points_sampled)
-train_dataset,val_dataset = data_handler.data_loader(16)
+train_dataset,val_dataset = data_handler.data_loader(64)
 inputs_not_sampled= data_handler.X_data
 
 # %%
@@ -22,7 +22,7 @@ model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-pinn=True
+pinn=False
 
 best_val_loss = float('inf')
 patience = 400

@@ -62,7 +62,7 @@ class PINN(nn.Module):
             x = self.activation(hidden_layers(x))
         x = self.fc_out(x)
 
-        real_output, imag_output = x[:,0], x[:,1]
+        real_output, imag_output = x[:,:8500], x[:,8500:]
         out = torch.complex(real_output, imag_output)
         return out
 

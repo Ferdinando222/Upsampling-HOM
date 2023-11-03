@@ -101,9 +101,7 @@ class DataHandler:
 
         print(self.frequencies[index])
 
-        gb.frequency = self.frequencies[index]
         self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,index]
 
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
@@ -127,22 +125,10 @@ class DataHandler:
         The real and imaginary parts of the output data are normalized separately.
         """
 
-        out_s_p = np.abs(self.OUTPUT_SAMPLED) * np.exp(1j * np.angle(self.OUTPUT_SAMPLED))
-        out_ns_p = np.abs(self.OUTPUT_NOT_SAMPLED) * np.exp(1j * np.angle(self.OUTPUT_NOT_SAMPLED))
-        out = np.abs(self.OUTPUT_DATA) * np.exp(1j * np.angle(self.OUTPUT_DATA))
 
         max_out_s_p = np.max(np.abs(self.OUTPUT_SAMPLED))
         max_out_ns_p = np.max(np.abs(self.OUTPUT_NOT_SAMPLED))
         max_out = np.max(np.abs(self.OUTPUT_DATA))
-
-        
-        min_out_s_p = np.min(np.abs(self.OUTPUT_SAMPLED))
-        min_out_ns_p = np.min(np.abs(self.OUTPUT_NOT_SAMPLED))
-        min_out = np.min(np.abs(self.OUTPUT_DATA))
-
-        mean_out_s_p = np.mean(np.abs(self.OUTPUT_SAMPLED))
-        mean_out_ns_p = np.mean(np.abs(self.OUTPUT_NOT_SAMPLED))
-        mean_out = np.mean(np.abs(self.OUTPUT_DATA))
 
         self.NORMALIZED_OUTPUT_SAMPLED = np.abs(self.OUTPUT_SAMPLED)/(max_out_s_p) * np.exp(1j * np.angle(self.OUTPUT_SAMPLED))
         self.NORMALIZED_OUTPUT_NOT_SAMPLED = np.abs(self.OUTPUT_NOT_SAMPLED)/(max_out_ns_p) * np.exp(1j * np.angle(self.OUTPUT_NOT_SAMPLED))
@@ -173,7 +159,7 @@ class DataHandler:
         """
 
         def distance(point1, point2):
-            # Calcola la distanza euclidea tra due punti in uno spazio tridimensionale
+            # compute euclidean distance btw points
             return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
 
         mic = np.column_stack((self.azimuth, self.colatitude))
@@ -195,9 +181,12 @@ class DataHandler:
                     number = i
 
             matching_indices.append(number)
+        
+        matching_indices = np.array(matching_indices)
+        print(matching_indices)
 
-        self.INPUT_SAMPLED = [item for i, item in enumerate(self.INPUT_DATA) if i  in matching_indices]
-        self.OUTPUT_SAMPLED =[item for i, item in enumerate(self.OUTPUT_DATA) if i  in matching_indices]
+        self.INPUT_SAMPLED = np.array(self.INPUT_SAMPLED)[matching_indices,:]
+        self.OUTPUT_SAMPLED = np.array(self.OUTPUT_SAMPLED)[matching_indices,:]
 
         self.INPUT_NOT_SAMPLED  = np.delete(self.INPUT_DATA,matching_indices,axis=0 )
         self.OUTPUT_NOT_SAMPLED = np.delete(self.OUTPUT_DATA, matching_indices, axis=0)
