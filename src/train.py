@@ -23,7 +23,7 @@ sweep_configuration = {
 }
 
 # Initialize sweep by passing in config.
-sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-pinn-{gb.points_sampled}-{gb.frequency}")
+#sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-pinn-{gb.points_sampled}-{gb.frequency}")
 
 #TODO: 
 # 1)TRAINING IN DIFFERENT AMBIENT
@@ -124,6 +124,6 @@ def train():
 
 if __name__=="__main__":
     #TRAINING 
-    wandb.agent(sweep_id=sweep_id,function=train)
+    wandb.agent(sweep_id="e6ljsip1", project=f"UPSAMPLING-pinn-{gb.points_sampled}-{gb.frequency}",function=train)
 
 # %%

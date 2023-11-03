@@ -130,7 +130,7 @@ class CombinedLoss(nn.Module):
         self.omega = 2 * np.pi * gb.frequency
         if pinn:
             self.pde_loss_fn = HelmholtzLoss(c=340, omega=self.omega)
-            self.bc_loss_fn = BCLoss()
+            #self.bc_loss_fn = BCLoss()
 
         self.data_loss_fn = DataTermLoss()
 
@@ -155,9 +155,9 @@ class CombinedLoss(nn.Module):
         loss_bc = 0
         if self.pinn:
             pde_loss = self.pde_loss_fn(inputs, model_estimation)
-            bc_loss = self.bc_loss_fn(inputs,model_estimation)
+            #bc_loss = self.bc_loss_fn(inputs,model_estimation)
             loss_pde = self.pde_weight * pde_loss
-            loss_bc = self.bc_weight *bc_loss
+            #loss_bc = self.bc_weight *bc_loss
 
         loss_data = self.data_weight * data_loss 
 
