@@ -13,20 +13,20 @@ sweep_configuration = {
     "name": "Training pinn with different hidden size",
     "metric": {"goal": "minimize", "name": "nmse"},
     "parameters": {
-        "batch_size": {"values": [16,32,64,128]},
-        "learning_rate": {"values":[0.01,0.001,0.0001]},
-        "hidden_size":{"max":256,"min":10},
-        "layer":{"max":5,"min":1},
-        #"pde_weights":{"max":0.01,"min":0.00001},
+        #"batch_size": {"values": [16,32,64,128]},
+        #"learning_rate": {"values":[0.01,0.001,0.0001]},
+        #"hidden_size":{"values":[256,128,64,32,22,12]},
+        #"layer":{"values":[5,3,2,1]},
+        "pde_weights":{"max":0.1,"min":0.00001},
         #"data_weights":{"max":2.0,"min":0.001}
-        #"c":{"max":20.0,"min":5.0}
-        #"w0":{"max":50.0,"min":1.0}
-        #"w0_initial":{"max":50.0,"min":1.0}
+        #"c":{"values":[20,10,5,1]},
+        #"w0":{"values":[50,25,12,5,1]},
+        #"w0_initial":{"values":[50,25,12,5,1]}
     },
 }
 
 # Initialize sweep by passing in config.
-sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-nopinn-siren-{gb.points_sampled}-{gb.frequency}")
+#sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-pinn-siren-{gb.points_sampled}-{gb.frequency}")
 
 #TODO: 
 # 1)TRAINING IN DIFFERENT AMBIENT
@@ -38,14 +38,17 @@ def train():
     with wandb.init():
 
         #HYPERPARAMETERS
-        hidden_size = wandb.config.hidden_size
+        hidden_size = 256
         layers = 1
-        batch_size = wandb.config.batch_size
-        learning_rate = wandb.config.learning_rate
+        batch_size = 128
+        learning_rate = 0.01
+        c=20
+        w0=5
+        w0_initial = 1
         data_weights = 1
         bc_weights=0
-        pde_weights = 0
-        frequency = 100
+        pde_weights = wandb.config.pde_weights
+        frequency = 400
 
         #CREATE DATASET
         path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
@@ -56,7 +59,7 @@ def train():
         train_dataset,val_dataset = data_handler.data_loader(batch_size)
 
         #CREATE_NETWORK
-        model = fnn.PINN(gb.input_dim,gb.output_dim,hidden_size,layers)
+        model = fnn.PINN(gb.input_dim,gb.output_dim,hidden_size,layers,w0,w0_initial,c)
         model = model.to(gb.device)
 
         #CREATE OPTIMIZER
@@ -65,7 +68,7 @@ def train():
         
         #TRAINING
 
-        pinn=False
+        pinn=True
         if pinn:
             print("Start Training PINN")
             wandb.run.name = f"hidden_size_{hidden_size}_{points_sampled}_{gb.frequency}_pinn"
@@ -75,7 +78,7 @@ def train():
 
         # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 5000
+        patience = 8000
         counter = 0
         
         for epoch in range(epochs):
@@ -101,9 +104,9 @@ def train():
                 counter = 0
             else:
                 counter += 1
-                if(counter %200 == 0 and learning_rate> 0.0001):
+                if(counter %1000 == 0 and learning_rate> 0.0001):
                     learning_rate = learning_rate/10
-                    #optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+                    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
                     print(f"Decrease learning rate {learning_rate} epochs.")
 
             if counter >= patience:
@@ -128,6 +131,6 @@ def train():
 
 if __name__=="__main__":
     #TRAINING 
-    wandb.agent(sweep_id=sweep_id,function=train)
+    wandb.agent(sweep_id="zr5y65d6",project=f"UPSAMPLING-pinn-siren-{gb.points_sampled}-{gb.frequency}",function=train)
 
 # %%

@@ -17,19 +17,19 @@ inputs_not_sampled= data_handler.X_data
 # %%
  #CREATE_NETWORK
 learning_rate = 0.01
-model = fnn.PINN(gb.input_dim,gb.output_dim,22,1)
+model = fnn.PINN(gb.input_dim,gb.output_dim,256,1,5,1,20)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-pinn=False
+pinn=True
 
 best_val_loss = float('inf')
 patience = 5000
 counter = 0
 
 data_weights = 1
-pde_weights = 0.00001
+pde_weights = 0.1
 bc_weights = 0
 
 print(gb.device)
@@ -48,9 +48,9 @@ for epoch in range(100000000):
         counter = 0
     else:
         counter += 1
-        if(counter %200 == 0 and learning_rate> 0.0001):
+        if(counter %1000 == 0 and learning_rate> 0.00001):
             learning_rate = learning_rate/10
-            #optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
             print(f"Decrease learning rate {learning_rate} epochs.")
                   
     if counter >= patience:
@@ -61,7 +61,7 @@ for epoch in range(100000000):
         
 nmse = best_model.test(data_handler)
         
-# %%
+ # %%
 import utils
 import numpy as np
 
