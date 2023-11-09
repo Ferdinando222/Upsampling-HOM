@@ -11,13 +11,13 @@ data_handler.remove_points(4)
 points_sampled =len(data_handler.INPUT_SAMPLED)
 gb.points_sampled = points_sampled
 print(points_sampled)
-train_dataset,val_dataset = data_handler.data_loader(64)
+train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 
 # %%
  #CREATE_NETWORK
-learning_rate = 0.001
-model = fnn.PINN(gb.input_dim,gb.output_dim,22,1)
+learning_rate = 0.01
+model = fnn.PINN(gb.input_dim,gb.output_dim,512,1,1,1,1)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -25,11 +25,11 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 pinn=False
 
 best_val_loss = float('inf')
-patience = 400
+patience = 200
 counter = 0
 
 data_weights = 1
-pde_weights = 0.001
+pde_weights = 0.01
 bc_weights = 0
 
 print(gb.device)
@@ -48,9 +48,9 @@ for epoch in range(100000000):
         counter = 0
     else:
         counter += 1
-        if(counter %200 == 0 and learning_rate> 0.0001):
+        if(counter %25 == 0 and learning_rate> 0.0001):
             learning_rate = learning_rate/10
-            #optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
             print(f"Decrease learning rate {learning_rate} epochs.")
                   
     if counter >= patience:
@@ -70,12 +70,16 @@ nmse = best_model.test(data_handler)
 input_data = data_handler.X_data
 input_data = input_data.to(gb.device)
 previsions_pinn = best_model.make_previsions(input_data)
-previsions_pinn = previsions_pinn.cpu().detach().numpy().flatten()
+index = 10
+previsions_pinn = previsions_pinn.cpu().detach().numpy()[:,index]
 
+gb.frequency = (index/17000)*48000
 
 #%%
 previsions_pinn = np.squeeze(previsions_pinn)
-utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn)
+
+#%%
+utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn,index)
 
 # %%
 

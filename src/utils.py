@@ -3,9 +3,8 @@ import numpy as np
 import matplotlib.colors as mcolors
 from sound_field_analysis import utils
 import global_variables as gb
-from sklearn.preprocessing import MinMaxScaler
 
-def plot_model(data,previsions,points_sampled,pinn=False):
+def plot_model(data,previsions,points_sampled,pinn,index):
 
     # prev_real = np.real(previsions)
     # prev_imag = np.imag(previsions)
@@ -21,12 +20,12 @@ def plot_model(data,previsions,points_sampled,pinn=False):
     microphone_positions = np.column_stack((azimuth_sampled, colatitude_sampled))
 
     # Crea un grafico 2D della pressione in funzione di azimuth e colatitude
-    pressure_difference = np.abs(data.NORMALIZED_OUTPUT)-np.abs(previsions)
+    pressure_difference = np.abs(data.NORMALIZED_OUTPUT[:,index])-np.abs(previsions)
     print(pressure_difference.shape)
 
     fig, (ax,ax1,ax2) = plt.subplots(1, 3, figsize=(12, 5))
     sc = ax.scatter(data.azimuth, data.colatitude, c=np.abs(previsions), cmap='viridis')
-    sc1 = ax1.scatter(data.azimuth, data.colatitude, c=np.abs(data.NORMALIZED_OUTPUT), cmap='viridis')
+    sc1 = ax1.scatter(data.azimuth, data.colatitude, c=np.abs(data.NORMALIZED_OUTPUT[:,index]), cmap='viridis')
     
     cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', [(1, 0, 0),(1, 1, 1), (1, 0, 1)], N=256)
     sc2 = ax2.scatter(data.azimuth, data.colatitude, c=pressure_difference, cmap=cmap,vmax=1,vmin=-1)
