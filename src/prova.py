@@ -5,8 +5,7 @@ import fnn
 import torch.optim as optim
 
 path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
-frequency = 200
-data_handler = dt.DataHandler(path_data,frequency)
+data_handler = dt.DataHandler(path_data)
 data_handler.remove_points(4)
 points_sampled =len(data_handler.INPUT_SAMPLED)
 gb.points_sampled = points_sampled
@@ -16,8 +15,8 @@ inputs_not_sampled= data_handler.X_data
 
 # %%
  #CREATE_NETWORK
-learning_rate = 0.01
-model = fnn.PINN(gb.input_dim,gb.output_dim,512,1,1,1,1)
+learning_rate = 0.001
+model = fnn.PINN(gb.input_dim,gb.output_dim,512,15)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -25,11 +24,11 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 pinn=False
 
 best_val_loss = float('inf')
-patience = 200
+patience = 500
 counter = 0
 
 data_weights = 1
-pde_weights = 0.01
+pde_weights = 0.0001
 bc_weights = 0
 
 print(gb.device)
@@ -65,11 +64,13 @@ nmse = best_model.test(data_handler)
 import utils
 import numpy as np
 
+
 # plot and NMSE of the model;
-nmse = best_model.test(data_handler)
 input_data = data_handler.X_data
 input_data = input_data.to(gb.device)
 previsions_pinn = best_model.make_previsions(input_data)
+
+#%%
 index = 10
 previsions_pinn = previsions_pinn.cpu().detach().numpy()[:,index]
 
@@ -83,43 +84,28 @@ utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn,index)
 
 # %%
 
+# plot comparison nmse btw sarita and PINN
+
+import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
 
-# Estrai la parte reale e la parte immaginaria
-real_parts = [z.real for z in data_handler.NORMALIZED_OUTPUT]
-imaginary_parts = [z.imag for z in data_handler.NORMALIZED_OUTPUT]
+path_sarita = '../dataset/nmse_db_sarita.csv'
+nmse_sarita = pd.read_csv(path_sarita).to_numpy().transpose().flatten()
 
+nmse_mean = np.mean(nmse)
+nmse_sar_mean = np.mean(nmse_sarita[1::100])
+# Creazione del grafico con legende personalizzate
+plt.plot(gb.frequency,nmse, label='NMSE Pinn')
+plt.plot(gb.frequency,nmse_sarita[1::100], label='Sarita')
 
-real_parts_sampled = [z.real for z in data_handler.NORMALIZED_OUTPUT_SAMPLED]
-imaginary_parts_sampled= [z.imag for z in data_handler.NORMALIZED_OUTPUT_SAMPLED]
-# Crea un diagramma sul piano complesso
+# Aggiungi etichette agli assi
+plt.xlabel('FREQUENCY')
+plt.ylabel('NMSE (DB)')
+plt.grid(True)
+# Aggiungi una legenda
+plt.legend()
 
-real_parts_previsions = [z.real for z in previsions_pinn]
-imaginary_parts_previsions = [z.imag for z in previsions_pinn]
-
-plt.figure(figsize=(8, 8))
-plt.scatter(real_parts, imaginary_parts, color='blue', marker='o')
-plt.scatter(real_parts_previsions, imaginary_parts_previsions, color='red', marker='x', label='Previsioni')
-plt.scatter(real_parts_sampled, imaginary_parts_sampled, color='black', marker='o', label='SAMPLING')
-
-# Etichette degli assi
-plt.xlabel('Parte Reale')
-plt.ylabel('Parte Immaginaria')
-
-# Titolo del grafico
-plt.title('Numeri Complessi sul Piano Complesso')
-
-# Visualizza il grafico
-plt.grid()
-plt.axhline(0, color='black', lw=0.5)
-plt.axvline(0, color='black', lw=0.5)
+# Mostra il grafico
 plt.show()
-
-
-
-
-
-
 
 # %%

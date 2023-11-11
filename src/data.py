@@ -33,7 +33,7 @@ class DataHandler:
         Y_data (torch.Tensor): Tensor containing the normalized output data for sampled points.
     """
 
-    def __init__(self, sofa_file_path, frequency):
+    def __init__(self, sofa_file_path):
         # INPUT AND OUTPUT DATA
         self.INPUT_DATA = None
         self.OUTPUT_DATA = None
@@ -64,7 +64,7 @@ class DataHandler:
         self.Y_data = None
 
         # Extract data from the SOFA file
-        self.extract_data(frequency, sofa_file_path)
+        self.extract_data(sofa_file_path)
 
         # Initialize sampled data to be the same as the full data
         self.INPUT_SAMPLED = self.INPUT_DATA
@@ -78,7 +78,7 @@ class DataHandler:
         # Create tensors for training
         self.create_tensors()
 
-    def extract_data(self, frequency, sofa_file_path):
+    def extract_data(self, sofa_file_path):
         """
         Extract acoustic data from a SOFA file.
 
@@ -96,12 +96,15 @@ class DataHandler:
         n = len(self.OUTPUT_DATA[0])
 
         self.frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)
-        # Calculate the index based on the given frequency
-        index = int(np.ceil((frequency / DRIR.signal.fs) * len(self.OUTPUT_DATA[0])))
+        self.frequencies= self.frequencies[:n//2]
+        gb.frequency = self.frequencies[1::100]
 
-        print(self.frequencies[index])
+        # Calculate the index based on the given frequency
+
 
         self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,1::100]
+        
 
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
@@ -113,6 +116,7 @@ class DataHandler:
 
         self.INPUT_DATA = list(zip(self.x, self.y, self.z))
 
+        print(len(self.OUTPUT_DATA[0,:]))
         # Check on INPUT_DATA AND OUTPUT_DATA
         assert len(self.INPUT_DATA) == len(DRIR.signal.signal)
         assert len(self.INPUT_DATA) == len(self.OUTPUT_DATA)

@@ -65,23 +65,35 @@ class HelmholtzLoss(nn.Module):
 
         u = model_estimation(x, y, z)
 
+        self.omega = torch.tensor(self.omega,dtype=torch.float32)
+
+        loss = []
         # Calculate partial derivatives of u with respect to x, y, and z
-        d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
-        d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
-        d_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
+        for i in range(u.shape[1]):
+            u_i = u[:, i].sum()
+            d_x = torch.autograd.grad(u_i, x, create_graph=True)[0]
+            d_y = torch.autograd.grad(u_i, y, create_graph=True)[0]
+            d_z = torch.autograd.grad(u_i, z, create_graph=True)[0]
 
-        # Calculate the Laplacian of u
-        laplace_u = torch.autograd.grad(d_x.sum(), x, create_graph=True)[0] + \
-                    torch.autograd.grad(d_y.sum(), y, create_graph=True)[0] + \
-                    torch.autograd.grad(d_z.sum(), z, create_graph=True)[0]
+            # Calculate the Laplacian of u
+            laplace_u = torch.autograd.grad(d_x.sum(), x,create_graph=True)[0] + \
+                        torch.autograd.grad(d_y.sum(), y,create_graph=True)[0] + \
+                        torch.autograd.grad(d_z.sum(), z,create_graph=True)[0]
+        
 
-        # Calculate the residual of the Helmholtz equation
-        pde_residual = laplace_u + (self.c / self.omega) ** 2 * u
+            # Calculate the residual of the Helmholtz equation
 
-        # Calculate the MSE loss of the Helmholtz equation residual
-        mse_pde_loss = torch.mean(torch.abs(pde_residual) ** 2)
+            pde_residual = laplace_u + (self.c / self.omega[i]) ** 2 * u[:,i]
 
-        return mse_pde_loss
+            # Calculate the MSE loss of the Helmholtz equation residual
+            mse_pde_loss = torch.mean(torch.abs(pde_residual) ** 2)
+
+            loss.append(mse_pde_loss)
+
+        loss = torch.tensor(loss,dtype=torch.float32)
+
+        print(loss)
+        return loss
 
 class BCLoss(nn.Module):
 
@@ -156,7 +168,7 @@ class CombinedLoss(nn.Module):
         if self.pinn:
             pde_loss = self.pde_loss_fn(inputs, model_estimation)
             #bc_loss = self.bc_loss_fn(inputs,model_estimation)
-            loss_pde = self.pde_weight * pde_loss
+            loss_pde = self.pde_weight * torch.mean(pde_loss)
             #loss_bc = self.bc_weight *bc_loss
 
         loss_data = self.data_weight * data_loss 

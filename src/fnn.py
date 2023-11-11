@@ -25,17 +25,19 @@ class PINN(nn.Module):
         hidden_size (int): Size of the hidden layers.
     """
 
-    def __init__(self, input_size, output_size, hidden_size,layers=5,w0=1.0,w0_init=10.0,c=6.0):
+    def __init__(self, input_size, output_size, hidden_size,layers=5):
         super(PINN, self).__init__()
 
-        self.network = SIREN(
-            layers=[hidden_size] * layers,
-            in_features=input_size,
-            out_features=2 * output_size,
-            w0=w0,
-            w0_initial=w0_init,
-            c=c
-        )
+        self.layers = layers
+        self.fc_in = nn.Linear(input_size, hidden_size)
+
+        self.hidden_layers = nn.ModuleList([nn.Linear(hidden_size, hidden_size) for _ in range(layers)])
+
+        self.fc_out = nn.Linear(hidden_size, 2 * output_size)  # Output layer
+
+        # Define the activation function (tanh)
+        self.activation = nn.Tanh()
+        self.hidden_size = hidden_size
 
     def forward(self, x, y, z):
         """
@@ -53,8 +55,14 @@ class PINN(nn.Module):
         x = torch.stack([x, y, z], dim=1).to(gb.device)
 
         # Forward pass through the deep network
-        x = self.network(x)
-        real_output, imag_output = x[:,:8500], x[:,8500:]
+        x = self.activation(self.fc_in(x))
+
+        for i in range(self.layers):
+            hidden_layers = self.hidden_layers[i]
+            x = self.activation(hidden_layers(x))
+        x = self.fc_out(x)
+
+        real_output, imag_output = x[:,:85], x[:,85:]
         out = torch.complex(real_output, imag_output)
         return out
 
@@ -152,11 +160,17 @@ class PINN(nn.Module):
         Returns:
             nmse_db (float): Normalized Mean Squared Error (NMSE) in decibels (dB).
         """
-        normalized_output_data = torch.tensor(data_handler.NORMALIZED_OUTPUT, dtype=torch.cfloat)
+    
         X_data_not_sampled= data_handler.X_data
         X_data_not_sampled = X_data_not_sampled.to(gb.device)
         previsions = self.make_previsions(X_data_not_sampled)
-        nmse = loss_functions.NMSE(normalized_output_data, previsions)
+        nmse = []
+
+        for j in range(len(data_handler.NORMALIZED_OUTPUT[0,:])):
+            normalized_output_data = torch.tensor(data_handler.NORMALIZED_OUTPUT[:,j], dtype=torch.cfloat)
+            prevision = previsions[:,j]
+            nmse.append(loss_functions.NMSE(normalized_output_data, prevision))
+
         return nmse
 
     def make_previsions(self, input_data):
