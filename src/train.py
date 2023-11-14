@@ -13,20 +13,20 @@ sweep_configuration = {
     "name": "Training pinn with different hidden size",
     "metric": {"goal": "minimize", "name": "nmse"},
     "parameters": {
-        #"batch_size": {"values": [16,32,64,128]},
-        #"learning_rate": {"values":[0.01,0.001,0.0001]},
-        #"hidden_size":{"values":[256,128,64,32,22,12]},
-        #"layer":{"values":[5,3,2,1]},
+        "batch_size": {"values": [16,32,64,128]},
+        "learning_rate": {"values":[0.01,0.001,0.0001]},
+        "hidden_size":{"values":[256,128,64,32,22,12]},
+        "layer":{"values":[5,3,2,1]},
         "pde_weights":{"max":0.1,"min":0.00001},
         #"data_weights":{"max":2.0,"min":0.001}
-        #"c":{"values":[20,10,5,1]},
-        #"w0":{"values":[50,25,12,5,1]},
-        #"w0_initial":{"values":[50,25,12,5,1]}
+        "c":{"values":[20,10,5,1]},
+        "w0":{"values":[50,25,12,5,1]},
+        "w0_initial":{"values":[50,25,12,5,1]}
     },
 }
 
 # Initialize sweep by passing in config.
-#sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-pinn-siren-{gb.points_sampled}-{gb.frequency}")
+sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-pinn-siren-{gb.points_sampled}-{gb.frequency}")
 
 #TODO: 
 # 1)TRAINING IN DIFFERENT AMBIENT
@@ -34,21 +34,21 @@ sweep_configuration = {
 #%%
 
 def train():
-    epochs = 100000
+    epochs = 10000000
     with wandb.init():
 
         #HYPERPARAMETERS
-        hidden_size = 256
-        layers = 1
-        batch_size = 128
-        learning_rate = 0.01
-        c=20
-        w0=5
-        w0_initial = 1
+        hidden_size = wandb.config.hidden_size
+        layers =wandb.config.layer
+        batch_size =wandb.config.batch_size
+        learning_rate = wandb.config.learning_rate
+        c=wandb.config.c
+        w0=wandb.config.w0
+        w0_initial = wandb.config.w0_initial
         data_weights = 1
         bc_weights=0
         pde_weights = wandb.config.pde_weights
-        frequency = 400
+        frequency =400
 
         #CREATE DATASET
         path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
@@ -104,7 +104,7 @@ def train():
                 counter = 0
             else:
                 counter += 1
-                if(counter %1000 == 0 and learning_rate> 0.0001):
+                if(counter %1000 == 0 and learning_rate> 0.00001):
                     learning_rate = learning_rate/10
                     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
                     print(f"Decrease learning rate {learning_rate} epochs.")
@@ -131,6 +131,6 @@ def train():
 
 if __name__=="__main__":
     #TRAINING 
-    wandb.agent(sweep_id="zr5y65d6",project=f"UPSAMPLING-pinn-siren-{gb.points_sampled}-{gb.frequency}",function=train)
+    wandb.agent(sweep_id=sweep_id,project=f"UPSAMPLING-pinn-siren-{gb.points_sampled}-{gb.frequency}",function=train)
 
 # %%

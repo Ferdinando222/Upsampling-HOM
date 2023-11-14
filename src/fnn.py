@@ -34,7 +34,8 @@ class PINN(nn.Module):
             out_features=2 * output_size,
             w0=w0,
             w0_initial=w0_init,
-            c=c
+            c=c,
+            initializer = 'siren'
         )
 
     def forward(self, x, y, z):
