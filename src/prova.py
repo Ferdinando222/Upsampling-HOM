@@ -16,15 +16,15 @@ inputs_not_sampled= data_handler.X_data
 # %%
  #CREATE_NETWORK
 learning_rate = 0.001
-model = fnn.PINN(gb.input_dim,gb.output_dim,512,15)
+model = fnn.PINN(gb.input_dim,gb.output_dim,256,2)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-pinn=False
+pinn= False
 
 best_val_loss = float('inf')
-patience = 500
+patience = 10
 counter = 0
 
 data_weights = 1
@@ -74,8 +74,6 @@ previsions_pinn = best_model.make_previsions(input_data)
 index = 10
 previsions_pinn = previsions_pinn.cpu().detach().numpy()[:,index]
 
-gb.frequency = (index/17000)*48000
-
 #%%
 previsions_pinn = np.squeeze(previsions_pinn)
 
@@ -90,13 +88,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 path_sarita = '../dataset/nmse_db_sarita.csv'
+path_no_pinn = '../dataset/nmse_nopinn.csv'
 nmse_sarita = pd.read_csv(path_sarita).to_numpy().transpose().flatten()
+nmse_no_pinn = pd.read_csv(path_no_pinn).to_numpy().transpose().flatten()
 
 nmse_mean = np.mean(nmse)
-nmse_sar_mean = np.mean(nmse_sarita[1::100])
+nmse_sar_mean = np.mean(nmse_sarita[1:])
+nmse_no_pinn_mean = np.mean(nmse_no_pinn)
+
 # Creazione del grafico con legende personalizzate
 plt.plot(gb.frequency,nmse, label='NMSE Pinn')
-plt.plot(gb.frequency,nmse_sarita[1::100], label='Sarita')
+plt.plot(gb.frequency,nmse_sarita[1:], label='Sarita')
+#plt.plot(gb.frequency,nmse_no_pinn, label='NMSE No PINN')
 
 # Aggiungi etichette agli assi
 plt.xlabel('FREQUENCY')
@@ -108,4 +111,14 @@ plt.legend()
 # Mostra il grafico
 plt.show()
 
-# %%
+
+#%%
+## SAVE RESULT
+##import csv
+##
+##csv_file_path = '../dataset/nmse_nopinn.csv'
+##
+##with open(csv_file_path, 'w', newline='') as csv_file:
+##    csv_writer = csv.writer(csv_file)
+##    csv_writer.writerow(nmse)
+

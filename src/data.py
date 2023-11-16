@@ -97,13 +97,13 @@ class DataHandler:
 
         self.frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)
         self.frequencies= self.frequencies[:n//2]
-        gb.frequency = self.frequencies[1::100]
+        gb.frequency = self.frequencies[0:]
 
         # Calculate the index based on the given frequency
 
 
         self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,1::100]
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,0:]
         
 
         # Extract spherical coordinates

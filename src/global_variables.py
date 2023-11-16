@@ -11,6 +11,6 @@ scaler_r_d = MinMaxScaler()
 scaler_i_s = MinMaxScaler()
 scaler_i_ns= MinMaxScaler()
 scaler_i_d = MinMaxScaler()
-output_dim = 85
+output_dim = 8500
 points_sampled =38
 device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")

@@ -73,15 +73,15 @@ def plot_model(data,previsions,points_sampled,pinn,index):
     cbar2.set_ticks([-1,-0.5,0,0.5, 1])
     cbar2.set_ticklabels(['-1','-o.5','0', '0.5', '1'])
 
-    frequency_label = f"Frequenza: {gb.frequency} Hz"
+    frequency_label = f"Frequenza: {gb.frequency[index]} Hz"
     ax.text(1, 0, frequency_label, transform=ax.transAxes, ha='right', va='bottom', color='black', fontsize=12)
     ax1.text(1, 0, frequency_label, transform=ax1.transAxes, ha='right', va='bottom', color='black', fontsize=12)
 
 
     if pinn:
-        plt.savefig(f"../src/image/Pinn_{points_sampled}_{gb.frequency}.png")
+        plt.savefig(f"../src/image/Pinn_{points_sampled}_{gb.frequency[index]}.png")
     else:
-        plt.savefig(f"../src/image/NoPinn_{points_sampled}_{gb.frequency}.png")
+        plt.savefig(f"../src/image/NoPinn_{points_sampled}_{gb.frequency[index]}.png")
 
     plt.show()
 

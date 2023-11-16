@@ -92,7 +92,6 @@ class HelmholtzLoss(nn.Module):
 
         loss = torch.tensor(loss,dtype=torch.float32)
 
-        print(loss)
         return loss
 
 class BCLoss(nn.Module):
