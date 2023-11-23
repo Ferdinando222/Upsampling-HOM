@@ -19,18 +19,18 @@ sweep_configuration = {
     "parameters": {
         #"batch_size": {"values": [16,32,64,128]},
         #"learning_rate": {"values":[0.01,0.001,0.0001]},
-        #"hidden_size":{"values":[512,256,128,64,32,22,12]},
-        #"layer":{"max":50,"min":1},
-        "pde_weights":{"max":0.1,"min":0.00001},
-        #"data_weights":{"max":2.0,"min":0.001}
-        #"c":{"values":[20,10,5,1]},
-        #"w0":{"values":[50,25,12,5,1]},
-        #"w0_initial":{"values":[50,25,12,5,1]}
+        #"hidden_size":{"values":[1024,512,256,128,64,32,22,12]},
+        #"layer":{"max":10,"min":1},
+        #"pde_weights":{"max":0.1,"min":0.000000001},
+        #"data_weights":{"max":2.0,"min":0.001},
+        "c":{"max":10,"min":1},
+        "w0":{"max":10,"min":1},
+        "w0_initial":{"max":10,"min":1}
     },
 }
 
 # Initialize sweep by passing in config.
-sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-pinn-{gb.points_sampled}-_ef")
+sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-pinn-{gb.points_sampled}-pinn_ef")
 
 
 #%%
@@ -40,27 +40,28 @@ def train():
     with wandb.init():
 
         #HYPERPARAMETERS
-        hidden_size = 64
-        layers = 20
-        batch_size = 128
-        learning_rate = 0.001
+        hidden_size = 256
+        layers = 2
+        batch_size = 32
+        learning_rate = 0.0001
         data_weights = 1
-        pde_weights = wandb.config.pde_weights
+        pde_weights = 1
         bc_weights=0
-        #c=wandb.config.c
-        #w0=wandb.config.w0
-        #w0_initial = wandb.config.w0_initial
+        c=wandb.config.c
+        w0=wandb.config.w0
+        w0_initial = wandb.config.w0_initial
+        M = 1
 
         #CREATE DATASET
         path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
-        data_handler = dt.DataHandler(path_data)
+        data_handler = dt.DataHandler(path_data,M)
         data_handler.remove_points(4)
         points_sampled =len(data_handler.INPUT_SAMPLED)
         gb.points_sampled = points_sampled
         train_dataset,val_dataset = data_handler.data_loader(batch_size)
 
         #CREATE_NETWORK
-        model = fnn.PINN(gb.input_dim,gb.output_dim,hidden_size,layers)
+        model = fnn.PINN(gb.input_dim,gb.output_dim,hidden_size,layers,w0,w0_initial,c)
         model = model.to(gb.device)
 
         #CREATE OPTIMIZER
@@ -69,7 +70,7 @@ def train():
         
         #TRAINING
 
-        pinn=True
+        pinn=False
         if pinn:
             print("Start Training PINN")
             wandb.run.name = f"hidden_size_{hidden_size}_{points_sampled}_pinn"
@@ -79,7 +80,7 @@ def train():
 
         # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 300
+        patience = 250
         counter = 0
         
         for epoch in range(epochs):
@@ -105,10 +106,10 @@ def train():
                 counter = 0
             else:
                 counter += 1
-                if(counter == 200):
-                    learning_rate = learning_rate/10
-                    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-                    print(f"Decrease learning rate {learning_rate} epochs.")
+                #if(counter %25 == 0 and learning_rate>0.00001):
+                #    learning_rate = learning_rate/10
+                #    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+                #    print(f"Decrease learning rate {learning_rate} epochs.")
 
             if counter >= patience:
                 print(f"Early stopping after {epoch + 1} epochs.")
@@ -119,14 +120,13 @@ def train():
         nmse = best_model.test(data_handler)
         wandb.log({"nmse": np.mean(np.array(nmse))})
 
-    print(nmse)
 
     path_sarita = '../dataset/nmse_db_sarita.csv'
     nmse_sarita = pd.read_csv(path_sarita).to_numpy().transpose().flatten()
 
     # Creazione del grafico con legende personalizzate
-    plt.plot(nmse, label='NMSE Pinn')
-    plt.plot(gb.frqnmse_sarita[1::100], label='Sarita')
+    plt.plot(gb.frequency,nmse, label='NMSE Pinn')
+    plt.plot(gb.frequency,nmse_sarita[1:1417], label='Sarita')
 
     # Aggiungi etichette agli assi
     plt.xlabel('FREQUENCY')
@@ -141,6 +141,6 @@ def train():
 
 if __name__=="__main__":
     #TRAINING 
-    wandb.agent(sweep_id=sweep_id, project=f"UPSAMPLING-pinn-{gb.points_sampled}-_ef",function=train)
+    wandb.agent(sweep_id= sweep_id, project=f"UPSAMPLING-pinn-{gb.points_sampled}-pinn_ef",function=train)
 
 # %%

@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 import global_variables as gb
 import math
+from scipy import signal
 
 class DataHandler:
     """
@@ -33,7 +34,7 @@ class DataHandler:
         Y_data (torch.Tensor): Tensor containing the normalized output data for sampled points.
     """
 
-    def __init__(self, sofa_file_path):
+    def __init__(self, sofa_file_path,M):
         # INPUT AND OUTPUT DATA
         self.INPUT_DATA = None
         self.OUTPUT_DATA = None
@@ -63,8 +64,10 @@ class DataHandler:
         self.X_data = None
         self.Y_data = None
 
+        self.M = M
+
         # Extract data from the SOFA file
-        self.extract_data(sofa_file_path)
+        self.extract_data(sofa_file_path,self.M)
 
         # Initialize sampled data to be the same as the full data
         self.INPUT_SAMPLED = self.INPUT_DATA
@@ -78,7 +81,7 @@ class DataHandler:
         # Create tensors for training
         self.create_tensors()
 
-    def extract_data(self, sofa_file_path):
+    def extract_data(self, sofa_file_path,M):
         """
         Extract acoustic data from a SOFA file.
 
@@ -88,23 +91,33 @@ class DataHandler:
         """
         # Read the SOFA file
         DRIR = io.read_SOFA_file(sofa_file_path)
+        drir = DRIR.signal.signal
         grid = DRIR.grid
+        fs = int(DRIR.signal.fs/M)
 
+        
+        drir_down = []
+        #DOWNSAMPLING 
+        for i in range(len(drir)):
+            length = int(len(drir[i,:]) * fs / DRIR.signal.fs)
+            drir_down.append(signal.resample(drir[i,:],length))
+            
+        drir_down = np.array(drir_down)
+        drir = drir_down
         # Extract the output data (FFT at the specified index)
-        self.OUTPUT_DATA = np.fft.fft(DRIR.signal.signal)
+        self.OUTPUT_DATA = np.fft.fft(drir)
 
         n = len(self.OUTPUT_DATA[0])
 
-        self.frequencies = np.fft.fftfreq(n, 1.0 / DRIR.signal.fs)
+        self.frequencies = np.fft.fftfreq(n, 1.0 / fs)
         self.frequencies= self.frequencies[:n//2]
-        gb.frequency = self.frequencies[0:]
+        gb.frequency = self.frequencies[1::100]
 
         # Calculate the index based on the given frequency
 
 
         self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,0:]
-        
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,1::100]
 
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
@@ -203,6 +216,8 @@ class DataHandler:
         self.normalize_data()
         self.create_tensors()
 
+    def downsampling(self,fs = 24000):
+        return
     def data_loader(self, batch_size=32):
         """
         Create a DataLoader for training data.
