@@ -6,7 +6,7 @@ import torch.optim as optim
 
 path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
 #DOWNSAMPLING FACTOR
-M = 2
+M = 1
 data_handler = dt.DataHandler(path_data,M)
 data_handler.remove_points(4)
 points_sampled =len(data_handler.INPUT_SAMPLED)
@@ -17,20 +17,20 @@ inputs_not_sampled= data_handler.X_data
 
 # %%
  #CREATE_NETWORK
-learning_rate = 0.0001
-model = fnn.PINN(gb.input_dim,gb.output_dim,1024,2,2,6,2)
+learning_rate = 0.001
+model = fnn.PINN(gb.input_dim,gb.output_dim,1024,4,2,6,1)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-pinn= True
+pinn=False
 
 best_val_loss = float('inf')
-patience = 250
+patience = 2000
 counter = 0
 
 data_weights = 1
-pde_weights = 1e-6
+pde_weights = 1e-11
 bc_weights = 0
 
 print(gb.device)
@@ -49,10 +49,10 @@ for epoch in range(100000):
         counter = 0
     else:
         counter += 1
-        #if(counter %125 == 0 and learning_rate> 0.0001):
-        #    learning_rate = learning_rate/10
-        #    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-        #    print(f"Decrease learning rate {learning_rate} epochs.")
+        if(counter %125 == 0 and learning_rate> 0.0001):
+            learning_rate = learning_rate/10
+            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+            print(f"Decrease learning rate {learning_rate} epochs.")
 #
     if counter  >= patience:
         print(f"Early stopping after {epoch + 1} epochs.")
@@ -60,7 +60,7 @@ for epoch in range(100000):
         break
 
         
-nmse = best_model.test(data_handler)
+nmse = model.test(data_handler)
         
 # %%
 import utils
@@ -70,10 +70,10 @@ import numpy as np
 # plot and NMSE of the model;
 input_data = data_handler.X_data
 input_data = input_data.to(gb.device)
-previsions_pinn = best_model.make_previsions(input_data)
+previsions_pinn = model.make_previsions(input_data)
 
 #%%
-index = 50
+index = 2
 previsions_pinn = previsions_pinn.cpu().detach().numpy()[:,index]
 
 #%%
@@ -89,18 +89,18 @@ utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn,index)
 import pandas as pd
 import matplotlib.pyplot as plt
 
-path_sarita = '../dataset/nmse_db_sarita_down24.csv'
+path_sarita = '../dataset/nmse_db_sarita.csv'
 path_no_pinn = '../dataset/nmse_nopinn.csv'
 nmse_sarita = pd.read_csv(path_sarita).to_numpy().transpose().flatten()
 nmse_no_pinn = pd.read_csv(path_no_pinn).to_numpy().transpose().flatten()
 
 nmse_mean = np.mean(nmse)
-nmse_sar_mean = np.mean(nmse_sarita[1::100])
+nmse_sar_mean = np.mean(nmse_sarita[1::500])
 nmse_no_pinn_mean = np.mean(nmse_no_pinn)
 
 # Creazione del grafico con legende personalizzate
 plt.plot(gb.frequency,nmse, label='NMSE No Pinn')
-plt.plot(gb.frequency,nmse_sarita[1::100], label='Sarita')
+plt.plot(gb.frequency,nmse_sarita[1::500], label='Sarita')
 #plt.plot(gb.frequency,nmse_no_pinn, label='NMSE No PINN')
 
 # Aggiungi etichette agli assi
