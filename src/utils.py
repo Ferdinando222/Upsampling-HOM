@@ -5,7 +5,7 @@ from sound_field_analysis import utils
 import global_variables as gb
 from sklearn.preprocessing import MinMaxScaler
 
-def plot_model(data,previsions,points_sampled,t,pinn=False):
+def plot_model(data,previsions,points_sampled,t,index,pinn=False):
 
     input_sampled = data.X_sampled
     x = input_sampled[:,0].cpu().detach().numpy()
@@ -17,12 +17,12 @@ def plot_model(data,previsions,points_sampled,t,pinn=False):
     microphone_positions = np.column_stack((azimuth_sampled, colatitude_sampled))
 
     # Crea un grafico 2D della pressione in funzione di azimuth e colatitude
-    pressure_difference = np.abs(data.NORMALIZED_OUTPUT)-np.abs(previsions)
+    pressure_difference = np.abs(data.NORMALIZED_OUTPUT[:,index])-np.abs(previsions)
     print(pressure_difference.shape)
 
     fig, (ax,ax1,ax2) = plt.subplots(1, 3, figsize=(12, 5))
     sc = ax.scatter(data.azimuth, data.colatitude, c=np.abs(previsions), cmap='viridis',vmax=1,vmin=0)
-    sc1 = ax1.scatter(data.azimuth, data.colatitude, c=np.abs(data.NORMALIZED_OUTPUT), cmap='viridis',vmax=1,vmin=0)
+    sc1 = ax1.scatter(data.azimuth, data.colatitude, c=np.abs(data.NORMALIZED_OUTPUT[:,index]), cmap='viridis',vmax=1,vmin=0)
     
     cmap = mcolors.LinearSegmentedColormap.from_list('custom_cmap', [(1, 0, 0),(1, 1, 1), (1, 0, 1)], N=256)
     sc2 = ax2.scatter(data.azimuth, data.colatitude, c=pressure_difference, cmap=cmap,vmax=1,vmin=-1)
@@ -70,15 +70,15 @@ def plot_model(data,previsions,points_sampled,t,pinn=False):
     cbar2.set_ticks([-1,-0.5,0,0.5, 1])
     cbar2.set_ticklabels(['-1','-o.5','0', '0.5', '1'])
 
-    time_label = f"Time: {time} s"
+    time_label = f"Time: {time[index]} s"
     ax.text(1, 0, time_label, transform=ax.transAxes, ha='right', va='bottom', color='black', fontsize=12)
     ax1.text(1, 0, time_label, transform=ax1.transAxes, ha='right', va='bottom', color='black', fontsize=12)
 
 
     if pinn:
-        plt.savefig(f"../src/image/Pinn_{points_sampled}_{time}.png")
+        plt.savefig(f"../src/image/Pinn_{points_sampled}_{time[index]}.png")
     else:
-        plt.savefig(f"../src/image/NoPinn_{points_sampled}_{time}.png")
+        plt.savefig(f"../src/image/NoPinn_{points_sampled}_{time[index]}.png")
 
     plt.show()
 

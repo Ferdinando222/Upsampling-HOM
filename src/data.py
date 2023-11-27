@@ -100,8 +100,8 @@ class DataHandler:
             time = sample_index / DRIR.signal.fs
             self.time_values.append(time)
 
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,1000:1001]
-        self.time_values = self.time_values[1000:1001]
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,:8500]
+        self.time_values = self.time_values[:8500]
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
         self.colatitude = grid.colatitude
@@ -131,10 +131,6 @@ class DataHandler:
         min_out_s_p = np.min(self.OUTPUT_SAMPLED)
         min_out_ns_p = np.min(self.OUTPUT_NOT_SAMPLED)
         min_out = np.min(self.OUTPUT_DATA)
-
-        mean_out_s_p = np.mean(np.abs(self.OUTPUT_SAMPLED))
-        mean_out_ns_p = np.mean(np.abs(self.OUTPUT_NOT_SAMPLED))
-        mean_out = np.mean(np.abs(self.OUTPUT_DATA))
 
         self.NORMALIZED_OUTPUT_SAMPLED = (self.OUTPUT_SAMPLED-min_out_s_p)/(max_out_s_p-min_out_s_p)
         self.NORMALIZED_OUTPUT_NOT_SAMPLED = (self.OUTPUT_NOT_SAMPLED-min_out_ns_p)/(max_out_ns_p-min_out_ns_p)
