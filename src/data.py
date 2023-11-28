@@ -11,11 +11,12 @@ class DataHandler:
     DataHandler class for processing and managing acoustic data.
 
     This class is designed to handle acoustic data from a SOFA file, preprocess it,
-    and create tensors for training machine learning models, such as Physics-Informed Neural Networks (PINNs).
+    and create tensors for training neural network models.
 
     Args:
         sofa_file_path (str): Path to the SOFA file containing acoustic data.
         frequency (float): The frequency of the acoustic data.
+        M (flaot): Factor for undersampling
 
     Attributes:
         INPUT_DATA (list of tuples): Input data extracted from the SOFA file.
@@ -111,13 +112,13 @@ class DataHandler:
 
         self.frequencies = np.fft.fftfreq(n, 1.0 / fs)
         self.frequencies= self.frequencies[:n//2]
-        gb.frequency = self.frequencies[1::100]
+        gb.frequency = self.frequencies[10::500]
 
         # Calculate the index based on the given frequency
 
 
         self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,1::100]
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,10::500]
 
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
@@ -175,9 +176,15 @@ class DataHandler:
             points_sampled (int): Number of sampled points to keep.
         """
 
-        def distance(point1, point2):
-            # compute euclidean distance btw points
-            return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+        def distance(point1, point2, radius=1.0):
+            # Convert spherical coordinates to radians
+            phi1, theta1 = np.radians(point1)
+            phi2, theta2 = np.radians(point2)
+
+            # Compute spherical distance
+            d = math.acos(np.sin(phi1) * np.sin(phi2) + np.cos(phi1) * np.cos(phi2) * np.cos(theta1 - theta2)) * radius
+
+            return d
 
         mic = np.column_stack((self.azimuth, self.colatitude))
 
@@ -216,8 +223,6 @@ class DataHandler:
         self.normalize_data()
         self.create_tensors()
 
-    def downsampling(self,fs = 24000):
-        return
     def data_loader(self, batch_size=32):
         """
         Create a DataLoader for training data.
