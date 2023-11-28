@@ -15,14 +15,13 @@ class PINN(nn.Module):
         input_size (int): The input size of the PINN model.
         output_size (int): The output size of the PINN model.
         hidden_size (int): The size of the hidden layers in the neural network.
+        layers (int): The number of hidden layers
+        w0 (float): A Siren parameter
+        w0_initial (float): A Siren parameter
+        c (flaot): A Siren parameter
 
     Attributes:
-        fc1 (nn.Linear): First fully connected layer for the real part of the PINN.
-        fc2 (nn.Linear): Second fully connected layer for the real part of the PINN.
-        fc3 (nn.Linear): Third fully connected layer for the real part of the PINN.
-        fc4 (nn.Linear): Fourth fully connected layer for the real part of the PINN.
-        activation (nn.Tanh): Activation function (tanh).
-        hidden_size (int): Size of the hidden layers.
+        network: network Siren
     """
 
     def __init__(self, input_size, output_size, hidden_size, layers=5, w0=1.0, w0_init=10.0, c=6.0):
