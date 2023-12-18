@@ -91,7 +91,7 @@ class PINN(nn.Module):
             z = data[:, 2].to(gb.device)
             target = target.to(gb.device)
 
-            optimizer.zero_grad()
+
             predictions = self(x, y, z)
             loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(data_weights, pde_weights,bc_weights, pinn)(predictions, target,
                                                                                                        inputs_not_sampled,self)
@@ -101,6 +101,7 @@ class PINN(nn.Module):
             cum_loss_bc.append(loss_bc)
             cum_loss.append(loss)
 
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
@@ -157,11 +158,8 @@ class PINN(nn.Module):
         X_data_not_sampled = X_data_not_sampled.to(gb.device)
         previsions = self.make_previsions(X_data_not_sampled)
         nmse = []
-
-        for j in range(len(data_handler.NORMALIZED_OUTPUT[1,:])):
-            normalized_output_data = torch.tensor(data_handler.NORMALIZED_OUTPUT[:,j], dtype=torch.cfloat)
-            prevision = previsions[:,j]
-            nmse.append(loss_functions.NMSE(normalized_output_data, prevision))
+        normalized_output_data = torch.tensor(data_handler.NORMALIZED_OUTPUT, dtype=torch.cfloat)
+        nmse.append(loss_functions.NMSE(normalized_output_data, previsions))
 
         return nmse
 

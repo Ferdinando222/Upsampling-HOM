@@ -36,6 +36,9 @@ class DataHandler:
     """
 
     def __init__(self, sofa_file_path,M):
+
+        #SIGNAL IN TIME
+        self.drir = None
         # INPUT AND OUTPUT DATA
         self.INPUT_DATA = None
         self.OUTPUT_DATA = None
@@ -87,38 +90,50 @@ class DataHandler:
         Extract acoustic data from a SOFA file.
 
         Args:
-            frequency (float): The frequency of the acoustic data.
             sofa_file_path (str): Path to the SOFA file containing acoustic data.
+            M (float): Down sampling factor
         """
         # Read the SOFA file
         DRIR = io.read_SOFA_file(sofa_file_path)
         drir = DRIR.signal.signal
         grid = DRIR.grid
         fs = int(DRIR.signal.fs/M)
-
-        
+        NFFT = len(drir[0,:])
+        self.NFFT_down = int(np.round(NFFT/M))
+        print(self.NFFT_down)
         drir_down = []
-        #DOWNSAMPLING 
+        #DOWNSAMPLING
+        print("Undersampling...")
+
+        drir_down = np.zeros((1202, self.NFFT_down))
+
         for i in range(len(drir)):
-            length = int(len(drir[i,:]) * fs / DRIR.signal.fs)
-            drir_down.append(signal.resample(drir[i,:],length))
-            
-        drir_down = np.array(drir_down)
-        drir = drir_down
+            drir_down[i, :] = signal.resample_poly(drir[i,:],1,self.M)
+
+        self.NFFT_down = 1025
+        self.drir = np.array(drir_down)
+
+
+        print("Shape signal:",self.drir.shape)
+        self.drir = self.drir[:,:1025]
+        print("Shape signal undersampled",self.drir.shape)
         # Extract the output data (FFT at the specified index)
-        self.OUTPUT_DATA = np.fft.fft(drir)
 
-        n = len(self.OUTPUT_DATA[0])
+        print("Computing FFT...")
+        self.OUTPUT_DATA = np.fft.fft(self.drir,self.NFFT_down)
 
+        n = len(self.OUTPUT_DATA[0,:])
+
+        print("Shape FFT:",len(self.OUTPUT_DATA),len(self.OUTPUT_DATA[0,:]))
         self.frequencies = np.fft.fftfreq(n, 1.0 / fs)
-        self.frequencies= self.frequencies[:n//2]
-        gb.frequency = self.frequencies[10::500]
+        self.frequencies= self.frequencies[:int(np.ceil(n/2))]
+        gb.frequency = self.frequencies
 
         # Calculate the index based on the given frequency
 
+        self.OUTPUT_DATA = self.OUTPUT_DATA[:,:int(np.ceil(n/2))]
 
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,:(n//2)]
-        self.OUTPUT_DATA = self.OUTPUT_DATA[:,10::500]
+        print("Shape FFT:",len(self.OUTPUT_DATA),len(self.OUTPUT_DATA[0,:]))
 
         # Extract spherical coordinates
         self.azimuth = grid.azimuth
@@ -130,7 +145,6 @@ class DataHandler:
 
         self.INPUT_DATA = list(zip(self.x, self.y, self.z))
 
-        print(len(self.OUTPUT_DATA[0,:]))
         # Check on INPUT_DATA AND OUTPUT_DATA
         assert len(self.INPUT_DATA) == len(DRIR.signal.signal)
         assert len(self.INPUT_DATA) == len(self.OUTPUT_DATA)
@@ -148,9 +162,15 @@ class DataHandler:
         max_out_ns_p = np.max(np.abs(self.OUTPUT_NOT_SAMPLED))
         max_out = np.max(np.abs(self.OUTPUT_DATA))
 
-        self.NORMALIZED_OUTPUT_SAMPLED = np.abs(self.OUTPUT_SAMPLED)/(max_out_s_p) * np.exp(1j * np.angle(self.OUTPUT_SAMPLED))
-        self.NORMALIZED_OUTPUT_NOT_SAMPLED = np.abs(self.OUTPUT_NOT_SAMPLED)/(max_out_ns_p) * np.exp(1j * np.angle(self.OUTPUT_NOT_SAMPLED))
-        self.NORMALIZED_OUTPUT =np.abs(self.OUTPUT_DATA)/(max_out) * np.exp(1j * np.angle(self.OUTPUT_DATA))
+        # self.NORMALIZED_OUTPUT_SAMPLED = np.abs(self.OUTPUT_SAMPLED)/(max_out_s_p) * np.exp(1j * np.angle(self.OUTPUT_SAMPLED))
+        # self.NORMALIZED_OUTPUT_NOT_SAMPLED = np.abs(self.OUTPUT_NOT_SAMPLED)/(max_out_ns_p) * np.exp(1j * np.angle(self.OUTPUT_NOT_SAMPLED))
+        # self.NORMALIZED_OUTPUT =np.abs(self.OUTPUT_DATA)/(max_out) * np.exp(1j * np.angle(self.OUTPUT_DATA))
+
+        
+        self.NORMALIZED_OUTPUT_SAMPLED = self.OUTPUT_SAMPLED
+        self.NORMALIZED_OUTPUT_NOT_SAMPLED = self.OUTPUT_NOT_SAMPLED
+        self.NORMALIZED_OUTPUT  = self.OUTPUT_DATA
+
 
 
     def create_tensors(self):
@@ -188,9 +208,9 @@ class DataHandler:
 
         mic = np.column_stack((self.azimuth, self.colatitude))
 
-        grid_under = gen.lebedev(order)
-        az_und = grid_under.azimuth
-        col_und = grid_under.colatitude
+        self.grid_under = gen.lebedev(order)
+        az_und = self.grid_under.azimuth
+        col_und = self.grid_under.colatitude
         mic_under = np.column_stack((az_und, col_und))
 
         matching_indices = []
@@ -210,10 +230,16 @@ class DataHandler:
         print(matching_indices)
 
         self.INPUT_SAMPLED = np.array(self.INPUT_SAMPLED)[matching_indices,:]
-        self.OUTPUT_SAMPLED = np.array(self.OUTPUT_SAMPLED)[matching_indices,:]
+        self.OUTPUT_SAMPLED = np.array(self.drir)[matching_indices,:]
+        self.drir_sampled = self.OUTPUT_SAMPLED
+        self.OUTPUT_SAMPLED = np.fft.fft(self.OUTPUT_SAMPLED,self.NFFT_down)
+
 
         self.INPUT_NOT_SAMPLED  = np.delete(self.INPUT_DATA,matching_indices,axis=0 )
-        self.OUTPUT_NOT_SAMPLED = np.delete(self.OUTPUT_DATA, matching_indices, axis=0)
+        self.OUTPUT_NOT_SAMPLED = np.delete(self.drir, matching_indices, axis=0)
+        self.OUTPUT_NOT_SAMPLED= np.fft.fft(self.OUTPUT_NOT_SAMPLED,self.NFFT_down)
+        self.OUTPUT_SAMPLED = self.OUTPUT_SAMPLED[:,:int(np.ceil(self.NFFT_down/2))]
+        self.OUTPUT_NOT_SAMPLED = self.OUTPUT_NOT_SAMPLED[:,:int(np.ceil(self.NFFT_down/2))]
 
         # Check input and ouput have the same size of points_sampled
         assert len(self.INPUT_SAMPLED) == len(self.OUTPUT_SAMPLED) == len(mic_under) 

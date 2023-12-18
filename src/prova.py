@@ -1,36 +1,40 @@
 #%%
 import data as dt
+import numpy as np
 import global_variables as gb
+import loss_functions as lf
 import fnn
+import torch
 import torch.optim as optim
 
 path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
 #DOWNSAMPLING FACTOR
-M = 1
+M = 3
+NFFT = int(np.round(17000/M))
 data_handler = dt.DataHandler(path_data,M)
 data_handler.remove_points(4)
 points_sampled =len(data_handler.INPUT_SAMPLED)
 gb.points_sampled = points_sampled
 print(points_sampled)
-train_dataset,val_dataset = data_handler.data_loader(32)
+train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 
 # %%
  #CREATE_NETWORK
-learning_rate = 0.001
-model = fnn.PINN(gb.input_dim,gb.output_dim,1024,4,2,6,1)
+learning_rate = 0.0001
+model = fnn.PINN(gb.input_dim,gb.output_dim,256,5,2,15,1)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-3)
 
-pinn=False
+pinn= True
 
 best_val_loss = float('inf')
-patience = 2000
+patience = 200
 counter = 0
 
 data_weights = 1
-pde_weights = 1e-11
+pde_weights = 1e-9
 bc_weights = 0
 
 print(gb.device)
@@ -49,10 +53,6 @@ for epoch in range(100000):
         counter = 0
     else:
         counter += 1
-        if(counter %125 == 0 and learning_rate> 0.0001):
-            learning_rate = learning_rate/10
-            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-            print(f"Decrease learning rate {learning_rate} epochs.")
 #
     if counter  >= patience:
         print(f"Early stopping after {epoch + 1} epochs.")
@@ -72,6 +72,81 @@ input_data = data_handler.X_data
 input_data = input_data.to(gb.device)
 previsions_pinn = model.make_previsions(input_data)
 
+previsions_pinn = previsions_pinn.cpu().detach().numpy()
+fft_result_full = np.concatenate((previsions_pinn, np.conj(np.fliplr(previsions_pinn[:, 1:]))), axis=1)
+previsions_time = np.real(np.fft.ifft(fft_result_full))
+
+#COMPUTE NMSE
+drir_ref = data_handler.drir
+drir_ref = torch.tensor(drir_ref,dtype=torch.float32)
+drir_prev = torch.tensor(previsions_time,dtype=torch.float32)
+mean_nmse_time,nmse_time= lf.NMSE(drir_ref,drir_prev)
+
+print(mean_nmse_time)
+
+import matplotlib.pyplot as plt
+plt.plot(10*torch.log10(nmse_time))
+
+#%%
+
+plt.plot(drir_ref[200,:])
+plt.plot(drir_prev[200,:],'--')
+plt.show()
+
+
+
+#%%
+
+
+import plotly.graph_objects as go
+import numpy as np
+
+
+# Creazione del grafico interattivo
+fig = go.Figure()
+idx = 600
+
+# Aggiunta delle tracce al grafico
+fig.add_trace(go.Scatter(y=drir_ref[idx,:], mode='lines', name='drir_ref'))
+fig.add_trace(go.Scatter(y=drir_prev[idx,:], mode='lines', name='drir_prev', line=dict(dash='dash')))
+
+# Aggiornamento del layout del grafico
+fig.update_layout(
+    title='Grafico Zoomabile',
+    xaxis_title='Indice',
+    yaxis_title='Valore',
+)
+
+# Abilitazione della funzione di zoom
+fig.update_layout(
+    xaxis=dict(
+        rangeselector=dict(
+            buttons=list([
+                dict(count=1, label="1m", step="month", stepmode="backward"),
+                dict(count=6, label="6m", step="month", stepmode="backward"),
+                dict(count=1, label="YTD", step="year", stepmode="todate"),
+                dict(count=1, label="1y", step="year", stepmode="backward"),
+                dict(step="all")
+            ])
+        ),
+        rangeslider=dict(visible=True),
+        type="linear"
+    )
+)
+
+# Mostra il grafico
+fig.show()
+
+
+
+
+# %%
+import utils
+# plot and NMSE of the model;
+input_data = data_handler.X_data
+input_data = input_data.to(gb.device)
+previsions_pinn = model.make_previsions(input_data)
+
 #%%
 index = 2
 previsions_pinn = previsions_pinn.cpu().detach().numpy()[:,index]
@@ -83,44 +158,3 @@ previsions_pinn = np.squeeze(previsions_pinn)
 utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn,index)
 
 # %%
-
-# plot comparison nmse btw sarita and PINN
-
-import pandas as pd
-import matplotlib.pyplot as plt
-
-path_sarita = '../dataset/nmse_db_sarita.csv'
-path_no_pinn = '../dataset/nmse_nopinn.csv'
-nmse_sarita = pd.read_csv(path_sarita).to_numpy().transpose().flatten()
-nmse_no_pinn = pd.read_csv(path_no_pinn).to_numpy().transpose().flatten()
-
-nmse_mean = np.mean(nmse)
-nmse_sar_mean = np.mean(nmse_sarita[1::500])
-nmse_no_pinn_mean = np.mean(nmse_no_pinn)
-
-# Creazione del grafico con legende personalizzate
-plt.plot(gb.frequency,nmse, label='NMSE No Pinn')
-plt.plot(gb.frequency,nmse_sarita[1::500], label='Sarita')
-#plt.plot(gb.frequency,nmse_no_pinn, label='NMSE No PINN')
-
-# Aggiungi etichette agli assi
-plt.xlabel('FREQUENCY')
-plt.ylabel('NMSE (DB)')
-plt.grid(True)
-# Aggiungi una legenda
-plt.legend()
-
-# Mostra il grafico
-plt.show()
-
-
-#%%
-## SAVE RESULT
-##import csv
-##
-##csv_file_path = '../dataset/nmse_nopinn.csv'
-##
-##with open(csv_file_path, 'w', newline='') as csv_file:
-##    csv_writer = csv.writer(csv_file)
-##    csv_writer.writerow(nmse)
-

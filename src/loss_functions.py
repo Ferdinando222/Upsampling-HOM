@@ -8,7 +8,7 @@ from torch.utils.checkpoint import checkpoint
 
 class DataTermLoss(nn.Module):
     """
-    Custom loss module for data term loss calculation.
+    Custom loss module for data term loss calculation. Used for compute MSE for complex value.
 
     This module calculates the mean squared error (MSE) loss between predictions and target values.
     """
@@ -27,10 +27,11 @@ class DataTermLoss(nn.Module):
         Returns:
             loss (torch.Tensor): The calculated loss.
         """
-        # Calculate the MSE loss
-        loss = torch.mean(torch.abs(target - predictions) ** 2)
-        return loss
 
+        # Calculate the MSE loss: added a frequency-dependent weight.
+        loss = torch.mean(torch.abs(target - predictions) ** 2 )
+
+        return loss
 
 class HelmholtzLoss(nn.Module):
     """
@@ -50,7 +51,7 @@ class HelmholtzLoss(nn.Module):
 
         Args:
             inputs (torch.Tensor): Input coordinates.
-            model_estimation (callable): A callable model function for estimating u.
+            model_estimation (callable): A callable model function for estimating pressure.
 
         Returns:
             mse_pde_loss (torch.Tensor): The calculated loss for the Helmholtz equation.
@@ -64,38 +65,41 @@ class HelmholtzLoss(nn.Module):
         y = y.requires_grad_(True)
         z = z.requires_grad_(True)
 
-        u = model_estimation(x, y, z)
+        u = model_estimation(x, y, z).to(gb.device)
 
         self.omega = torch.tensor(self.omega,dtype=torch.float32)
-        self.omega = self.omega
+        self.omega = self.omega.to(gb.device)
 
-        loss = []
+        laplace = torch.zeros(u.shape[0],u.shape[1]-1, dtype=torch.cfloat, device=gb.device)
+
         # Calculate partial derivatives of u with respect to x, y, and z
-        for i in range(u.shape[1]):
+        for i in range(u.shape[1]-1):
+            u_i_real = u[:,i+1].real
+            u_i_imag = u[:,i+1].imag
+            d_x_real = torch.autograd.grad(u_i_real.sum(),x,create_graph=True)[0]
+            d_y_real = torch.autograd.grad(u_i_real.sum(),y,create_graph=True)[0]
+            d_z_real = torch.autograd.grad(u_i_real.sum(),z,create_graph=True)[0]
 
-
-            d_x = torch.autograd.grad(u.sum(),x, retain_graph=True,create_graph=True)[0]
-            d_y = torch.autograd.grad(u.sum(),y, retain_graph=True,create_graph=True)[0]
-            d_z = torch.autograd.grad(u.sum(),z, retain_graph=True,create_graph=True)[0]
-
+            d_x_imag = torch.autograd.grad(u_i_imag.sum(),x,create_graph=True)[0]
+            d_y_imag = torch.autograd.grad(u_i_imag.sum(),y,create_graph=True)[0]
+            d_z_imag = torch.autograd.grad(u_i_imag.sum(),z,create_graph=True)[0]
 
 
             # Calculate the Laplacian of u
-            laplace_u = torch.autograd.grad(d_x.sum(), x,retain_graph=True)[0]+ \
-                        torch.autograd.grad(d_y.sum(), y,retain_graph=True)[0] + \
-                        torch.autograd.grad(d_z.sum(), z,retain_graph=True)[0]
 
+            laplace_u = torch.autograd.grad(d_x_real.sum(), x,retain_graph=True)[0]+ \
+                        torch.autograd.grad(d_y_real.sum(), y,retain_graph=True)[0] + \
+                        torch.autograd.grad(d_z_real.sum(), z,retain_graph=True)[0]+ \
+                        1j*torch.autograd.grad(d_x_imag.sum(), x, retain_graph=True)[0] + \
+                        1j*torch.autograd.grad(d_y_imag.sum(), y, retain_graph=True)[0] + \
+                        1j*torch.autograd.grad(d_z_imag.sum(), z, retain_graph=True)[0]
 
-            # Calculate the residual of the Helmholtz equation
-            #torch.exp(-(self.omega[i])/self.c)*
-            pde_residual = torch.exp(-(self.omega[i])/self.c)*(laplace_u + (self.c / self.omega[i]) ** 2 * u[:,i])
+            laplace[:,i] = laplace_u
 
-            # Calculate the MSE loss of the Helmholtz equation residual
-            mse_pde_loss = torch.mean(torch.abs(pde_residual) ** 2)
-
-            loss.append(mse_pde_loss)
-
-        loss = torch.tensor(loss,dtype=torch.float32)
+        laplace = laplace.to(gb.device)
+        pde_residual = laplace + (self.omega[1:]/self.c) ** 2 * u[:,1:]
+        loss = torch.mean(torch.abs(pde_residual)**2,dim=1)
+        loss = torch.mean(loss)
 
         return loss
 
@@ -172,7 +176,7 @@ class CombinedLoss(nn.Module):
         if self.pinn:
             pde_loss = self.pde_loss_fn(inputs, model_estimation)
             #bc_loss = self.bc_loss_fn(inputs,model_estimation)
-            loss_pde = self.pde_weight*torch.mean(pde_loss)
+            loss_pde = self.pde_weight*pde_loss
             #loss_bc = self.bc_weight *bc_loss
 
         loss_data = self.data_weight * data_loss 
@@ -198,10 +202,17 @@ def NMSE(normalized_output, predictions):
     predictions = predictions.to(gb.device)
 
     # Calculate Mean Squared Error (MSE)
-    mse = torch.sum(torch.abs(normalized_output - predictions) ** 2)
+    mse = torch.abs(normalized_output - predictions) ** 2
+
+    mse = torch.sum(mse,dim=1)
+
+    norm = torch.sum(torch.abs(normalized_output) ** 2,dim=1)
 
     # Calculate NMSE in dB
-    nmse = mse / torch.sum(torch.abs(normalized_output) ** 2)
-    nmse_db = 10 * torch.log10(nmse)
+    nmse = mse / norm
 
-    return nmse_db.item()
+    nmse_db = 10 * torch.log10(torch.mean(nmse))
+
+
+    return nmse_db,nmse
+
