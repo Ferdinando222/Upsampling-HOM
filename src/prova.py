@@ -22,24 +22,25 @@ inputs_not_sampled= data_handler.X_data
 # %%
  #CREATE_NETWORK
 learning_rate = 0.0001
-model = fnn.PINN(gb.input_dim,gb.output_dim,256,5,2,15,1)
+model = fnn.PINN(gb.input_dim,gb.output_dim,1024,3,1,10,4)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-3)
 
+gb.e_f= torch.tensor(1e-8
+                     , requires_grad=True, dtype=torch.float32)
+gb.e_b = torch.tensor(1e-4, requires_grad=True, dtype=torch.float32)
+gb.e_d = torch.tensor(1, requires_grad=True, dtype=torch.float32)
+
 pinn= True
 
 best_val_loss = float('inf')
-patience = 200
+patience = 10000
 counter = 0
-
-data_weights = 1
-pde_weights = 1e-9
-bc_weights = 0
 
 print(gb.device)
 for epoch in range(100000):
-    loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,data_weights,pde_weights,bc_weights,points_sampled,pinn=pinn)
+    loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,points_sampled,pinn=pinn)
     val_loss = model.test_epoch(val_dataset)
 
     if epoch % 10 == 0:

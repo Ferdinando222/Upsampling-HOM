@@ -110,12 +110,12 @@ class DataHandler:
         for i in range(len(drir)):
             drir_down[i, :] = signal.resample_poly(drir[i,:],1,self.M)
 
-        self.NFFT_down = 1025
+        self.NFFT_down = 5667
         self.drir = np.array(drir_down)
 
 
         print("Shape signal:",self.drir.shape)
-        self.drir = self.drir[:,:1025]
+        self.drir = self.drir[:,:self.NFFT_down]
         print("Shape signal undersampled",self.drir.shape)
         # Extract the output data (FFT at the specified index)
 

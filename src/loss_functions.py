@@ -29,7 +29,16 @@ class DataTermLoss(nn.Module):
         """
 
         # Calculate the MSE loss: added a frequency-dependent weight.
-        loss = torch.mean(torch.abs(target - predictions) ** 2 )
+
+        target_real = target.real
+        target_imag = target.imag
+
+        predictions_real = predictions.real
+        predictions_imag = predictions.imag
+
+        loss_real = torch.mean((target_real-predictions_real)**2)
+        loss_imag = torch.mean((target_imag-predictions_imag)**2)
+        loss = loss_real+loss_imag
 
         return loss
 
@@ -65,41 +74,33 @@ class HelmholtzLoss(nn.Module):
         y = y.requires_grad_(True)
         z = z.requires_grad_(True)
 
-        u = model_estimation(x, y, z).to(gb.device)
+        u = model_estimation(x, y, z).to(gb.device) #Shape u -> [1202,512]
 
-        self.omega = torch.tensor(self.omega,dtype=torch.float32)
-        self.omega = self.omega.to(gb.device)
-
-        laplace = torch.zeros(u.shape[0],u.shape[1]-1, dtype=torch.cfloat, device=gb.device)
 
         # Calculate partial derivatives of u with respect to x, y, and z
-        for i in range(u.shape[1]-1):
-            u_i_real = u[:,i+1].real
-            u_i_imag = u[:,i+1].imag
-            d_x_real = torch.autograd.grad(u_i_real.sum(),x,create_graph=True)[0]
-            d_y_real = torch.autograd.grad(u_i_real.sum(),y,create_graph=True)[0]
-            d_z_real = torch.autograd.grad(u_i_real.sum(),z,create_graph=True)[0]
+        u_i_real = u.real
+        u_i_imag = u.imag
+        d_x_real = torch.autograd.grad(u_i_real.sum(),x,create_graph=True)[0]
+        d_y_real = torch.autograd.grad(u_i_real.sum(),y,create_graph=True)[0]
+        d_z_real = torch.autograd.grad(u_i_real.sum(),z,create_graph=True)[0]
+        d_x_imag = torch.autograd.grad(u_i_imag.sum(),x,create_graph=True)[0]
+        d_y_imag = torch.autograd.grad(u_i_imag.sum(),y,create_graph=True)[0]
+        d_z_imag = torch.autograd.grad(u_i_imag.sum(),z,create_graph=True)[0]
 
-            d_x_imag = torch.autograd.grad(u_i_imag.sum(),x,create_graph=True)[0]
-            d_y_imag = torch.autograd.grad(u_i_imag.sum(),y,create_graph=True)[0]
-            d_z_imag = torch.autograd.grad(u_i_imag.sum(),z,create_graph=True)[0]
-
-
-            # Calculate the Laplacian of u
-
-            laplace_u = torch.autograd.grad(d_x_real.sum(), x,retain_graph=True)[0]+ \
-                        torch.autograd.grad(d_y_real.sum(), y,retain_graph=True)[0] + \
-                        torch.autograd.grad(d_z_real.sum(), z,retain_graph=True)[0]+ \
-                        1j*torch.autograd.grad(d_x_imag.sum(), x, retain_graph=True)[0] + \
-                        1j*torch.autograd.grad(d_y_imag.sum(), y, retain_graph=True)[0] + \
-                        1j*torch.autograd.grad(d_z_imag.sum(), z, retain_graph=True)[0]
-
-            laplace[:,i] = laplace_u
+        # Calculate the Laplacian of u
+        laplace = torch.autograd.grad(d_x_real.sum(), x,retain_graph=True)[0]+ \
+                    torch.autograd.grad(d_y_real.sum(), y,retain_graph=True)[0] + \
+                    torch.autograd.grad(d_z_real.sum(), z,retain_graph=True)[0]+ \
+                    1j*torch.autograd.grad(d_x_imag.sum(), x, retain_graph=True)[0] + \
+                    1j*torch.autograd.grad(d_y_imag.sum(), y, retain_graph=True)[0] + \
+                    1j*torch.autograd.grad(d_z_imag.sum(), z, retain_graph=True)[0]
 
         laplace = laplace.to(gb.device)
-        pde_residual = laplace + (self.omega[1:]/self.c) ** 2 * u[:,1:]
-        loss = torch.mean(torch.abs(pde_residual)**2,dim=1)
-        loss = torch.mean(loss)
+
+        k = torch.tensor((self.omega/self.c),dtype=torch.cfloat).to(gb.device)
+        pde_residual = laplace + k ** 2 @ u.t()
+
+        loss = 1/len(gb.frequency)*torch.mean(torch.abs(pde_residual)**2)
 
         return loss
 
@@ -120,15 +121,23 @@ class BCLoss(nn.Module):
 
         u = model_estimation(x, y, z)
 
-        d_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
-        d_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
-        d_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
+        # Calculate partial derivatives of u with respect to x, y, and z
+        u_i_real = u.real
+        u_i_imag = u.imag
+        d_x_real = torch.autograd.grad(u_i_real.sum(),x,create_graph=True)[0]
+        d_y_real = torch.autograd.grad(u_i_real.sum(),y,create_graph=True)[0]
+        d_z_real = torch.autograd.grad(u_i_real.sum(),z,create_graph=True)[0]
+        d_x_imag = torch.autograd.grad(u_i_imag.sum(),x,create_graph=True)[0]
+        d_y_imag = torch.autograd.grad(u_i_imag.sum(),y,create_graph=True)[0]
+        d_z_imag = torch.autograd.grad(u_i_imag.sum(),z,create_graph=True)[0]
 
         coordinates = torch.stack((x, y, z), dim=1)
-        derivatives = torch.transpose(torch.stack((d_x, d_y, d_z), dim=1),0,1)
+        derivatives_real = torch.transpose(torch.stack((d_x_real, d_y_real, d_z_real), dim=1),0,1)
+        derivatives_imag = torch.transpose(torch.stack((d_x_imag, d_y_imag, d_z_imag), dim=1),0,1)
 
-        bc_residual = torch.matmul(coordinates, derivatives)
-        mse_bc = torch.mean(torch.abs(bc_residual) ** 2)
+        bc_residual_real= torch.matmul(coordinates, derivatives_real)
+        bc_residual_imag= torch.matmul(coordinates, derivatives_imag)
+        mse_bc = 1/len(gb.frequency)*torch.mean(torch.abs(bc_residual_real+1j*bc_residual_imag) ** 2)
 
         return mse_bc
 
@@ -141,12 +150,9 @@ class CombinedLoss(nn.Module):
     This module calculates a combined loss that consists of a data term loss and a Helmholtz equation term loss.
     """
 
-    def __init__(self, data_weight=1.0, pde_weight=1.0,bc_weight=1.0, pinn=False):
+    def __init__(self, pinn=False):
         super(CombinedLoss, self).__init__()
         self.pinn = pinn
-        self.bc_weight = bc_weight
-        self.data_weight = data_weight
-        self.pde_weight = pde_weight
         self.omega = 2 * np.pi * gb.frequency
         if pinn:
             self.pde_loss_fn = HelmholtzLoss(c=340, omega=self.omega)
@@ -176,13 +182,13 @@ class CombinedLoss(nn.Module):
         if self.pinn:
             pde_loss = self.pde_loss_fn(inputs, model_estimation)
             #bc_loss = self.bc_loss_fn(inputs,model_estimation)
-            loss_pde = self.pde_weight*pde_loss
-            #loss_bc = self.bc_weight *bc_loss
+            loss_pde = gb.e_f*pde_loss
+            #loss_bc = gb.e_b *bc_loss
 
-        loss_data = self.data_weight * data_loss 
+        loss_data = gb.e_d * data_loss
 
         # Calculate the combined loss
-        loss = loss_pde + loss_data + loss_bc
+        loss = loss_pde + loss_data
 
         return loss, loss_data, loss_pde,loss_bc
 

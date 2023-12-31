@@ -27,10 +27,20 @@ class PINN(nn.Module):
     def __init__(self, input_size, output_size, hidden_size, layers=5, w0=1.0, w0_init=10.0, c=6.0):
         super(PINN, self).__init__()
 
-        self.network = SIREN(
+        self.network_real= SIREN(
             layers=[hidden_size] * layers,
             in_features=input_size,
-            out_features=2 * output_size,
+            out_features=output_size,
+            w0=w0,
+            w0_initial=w0_init,
+            c=c,
+            initializer='siren'
+        )
+
+        self.network_imag = SIREN(
+            layers=[hidden_size] * layers,
+            in_features=input_size,
+            out_features=output_size,
             w0=w0,
             w0_initial=w0_init,
             c=c,
@@ -53,12 +63,12 @@ class PINN(nn.Module):
         x = torch.stack([x, y, z], dim=1).to(gb.device)
 
         # Forward pass through the deep network
-        x = self.network(x)
-        real_output, imag_output = x[:,:gb.output_dim], x[:,gb.output_dim:]
-        out = torch.complex(real_output, imag_output)
+        x_real = self.network_real(x)
+        x_imag = self.network_imag(x)
+        out = torch.complex(x_real, x_imag)
         return out
 
-    def train_epoch(self, loader, inputs_not_sampled, optimizer, data_weights, pde_weights,bc_weights, points_sampled, pinn=False):
+    def train_epoch(self, loader, inputs_not_sampled, optimizer, points_sampled, pinn=False):
         """
         Train the PINN model for one epoch.
 
@@ -93,9 +103,7 @@ class PINN(nn.Module):
 
 
             predictions = self(x, y, z)
-            loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(data_weights, pde_weights,bc_weights, pinn)(predictions, target,
-                                                                                                       inputs_not_sampled,self)
-
+            loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(pinn)(predictions, target,inputs_not_sampled,self)
             cum_loss_data.append(loss_data)
             cum_loss_pde.append(loss_pde)
             cum_loss_bc.append(loss_bc)
@@ -138,7 +146,7 @@ class PINN(nn.Module):
 
         # Calculate the mean of cum_loss_tensor
         val_mean_loss = torch.mean(val_loss_tensor)
-
+        self.train()
         return val_mean_loss
 
 

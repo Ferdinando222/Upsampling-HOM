@@ -17,13 +17,15 @@ sweep_configuration = {
     "parameters": {
         #"batch_size": {"values": [16,32,64,128]},
         #"learning_rate": {"values":[0.01,0.001,0.0001]},
-        #"hidden_size":{"values":[256,128,64]},
-        #"layer":{"max":4,"min":2},
-        "pde_weights":{"max":5e-9,"min":1e-9},
-        #"data_weights":{"max":2.0,"min":0.001},
-        #"c":{"max":20,"min":1},
-        #"w0":{"max":20,"min":1},
-        #"w0_initial":{"max":20,"min":1}                                          
+        "hidden_size":{"values":[1024,512,256]},
+        #"layer":{"max":8,"min":3},
+        "pde_weights":{"max":1e-8,"min":1e-15},
+        "data_weights":{"max":2.0,"min":0.0001},
+        #"bc_weights":{"max":5e-5,"min":1e-25},
+        "c":{"max":5,"min":1},
+        "w0":{"max":10,"min":1},
+        "w0_initial":{"max":15,"min":1},
+        "weight_decay":{"values":[1e-2,1e-3,1e-4,1e-5]}
     },
 }
 
@@ -38,17 +40,18 @@ def train():
     with wandb.init():
 
         #HYPERPARAMETERS
-        hidden_size = 256
-        layers = 5
+        hidden_size = wandb.config.hidden_size
+        layers = 3
         batch_size = 128
         learning_rate = 0.0001
-        data_weights = 1
+        data_weights = wandb.config.data_weights
         pde_weights = wandb.config.pde_weights
         bc_weights=0
-        c=1
-        w0=2
-        w0_initial = 15
+        c=wandb.config.c
+        w0=wandb.config.w0
+        w0_initial = wandb.config.w0_initial
         M = 3
+        weight_decay = wandb.config.weight_decay
 
         #CREATE DATASET
         path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
@@ -63,7 +66,12 @@ def train():
         model = model.to(gb.device)
 
         #CREATE OPTIMIZER
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-3)
+
+        gb.e_f = torch.tensor(pde_weights, requires_grad=True, dtype=torch.float32)
+        gb.e_b = torch.tensor(bc_weights, requires_grad=True, dtype=torch.float32)
+        gb.e_d = torch.tensor(data_weights, requires_grad=True, dtype=torch.float32)
+
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=weight_decay)
         inputs_not_sampled= data_handler.X_data
         
         #TRAINING
@@ -80,11 +88,11 @@ def train():
 
         # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 300
+        patience = 1000
         counter = 0
         
         for epoch in range(epochs):
-            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,data_weights,pde_weights,bc_weights,points_sampled,pinn=pinn)
+            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,points_sampled,pinn=pinn)
             val_loss = model.test_epoch(val_dataset)
 
             wandb.log({
@@ -93,7 +101,10 @@ def train():
                 "loss_data":loss_data,
                 "loss_pde":torch.mean(loss_pde),
                 "loss_bc":loss_bc,
-                "val_loss":val_loss
+                "val_loss":val_loss,
+                "e_f":gb.e_f,
+                "e_d":gb.e_d,
+                "e_b":gb.e_b
             }
             )
             if epoch % 10 == 0:
