@@ -6,6 +6,7 @@ import loss_functions as lf
 import fnn
 import torch
 import torch.optim as optim
+import loss_functions
 
 path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
 #DOWNSAMPLING FACTOR
@@ -22,26 +23,24 @@ inputs_not_sampled= data_handler.X_data
 # %%
  #CREATE_NETWORK
 learning_rate = 0.0001
-model = fnn.PINN(gb.input_dim,gb.output_dim,1024,3,1,10,4)
+model = fnn.PINN(gb.input_dim,gb.output_dim,512,5,1,5,5)
 model = model.to(gb.device)
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-3)
-
-gb.e_f= torch.tensor(1e-8
-                     , requires_grad=True, dtype=torch.float32)
-gb.e_b = torch.tensor(1e-4, requires_grad=True, dtype=torch.float32)
-gb.e_d = torch.tensor(1, requires_grad=True, dtype=torch.float32)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=1000, factor=0.5, verbose=True)
 
 pinn= True
+loss_comb= loss_functions.CombinedLoss(pinn)
 
 best_val_loss = float('inf')
-patience = 10000
+patience = 200
 counter = 0
 
 print(gb.device)
 for epoch in range(100000):
-    loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,points_sampled,pinn=pinn)
+    loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,loss_comb,points_sampled,pinn=pinn)
     val_loss = model.test_epoch(val_dataset)
+    scheduler.step(val_loss)
 
     if epoch % 10 == 0:
         print(f'Epoch [{epoch}/{100000}], Loss: {loss.item()},Val_Loss:{val_loss.item()}')
@@ -55,6 +54,7 @@ for epoch in range(100000):
     else:
         counter += 1
 #
+
     if counter  >= patience:
         print(f"Early stopping after {epoch + 1} epochs.")
         counter = 0

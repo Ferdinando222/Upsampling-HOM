@@ -7,6 +7,7 @@ import torch.optim as optim
 import wandb
 import torch
 import global_variables as gb
+import loss_functions
 
 
 # Define sweep config
@@ -17,15 +18,15 @@ sweep_configuration = {
     "parameters": {
         #"batch_size": {"values": [16,32,64,128]},
         #"learning_rate": {"values":[0.01,0.001,0.0001]},
-        "hidden_size":{"values":[1024,512,256]},
+        #"hidden_size":{"values":[1024,512,256]},
         #"layer":{"max":8,"min":3},
-        "pde_weights":{"max":1e-8,"min":1e-15},
-        "data_weights":{"max":2.0,"min":0.0001},
+        "pde_weights":{"values":[1e-7]},
+        #"data_weights":{"max":2.0,"min":0.0001},
         #"bc_weights":{"max":5e-5,"min":1e-25},
-        "c":{"max":5,"min":1},
-        "w0":{"max":10,"min":1},
-        "w0_initial":{"max":15,"min":1},
-        "weight_decay":{"values":[1e-2,1e-3,1e-4,1e-5]}
+        #"c":{"max":5,"min":1},
+        #"w0":{"max":10,"min":1},
+        #"w0_initial":{"max":15,"min":1},
+        #"weight_decay":{"values":[1e-2,1e-3,1e-4,1e-5]}
     },
 }
 
@@ -40,18 +41,18 @@ def train():
     with wandb.init():
 
         #HYPERPARAMETERS
-        hidden_size = wandb.config.hidden_size
-        layers = 3
+        hidden_size = 512
+        layers = 5
         batch_size = 128
-        learning_rate = 0.0001
-        data_weights = wandb.config.data_weights
-        pde_weights = wandb.config.pde_weights
+        learning_rate = 0.001
+        data_weights = 1
+        pde_weights = 1e-4
         bc_weights=0
-        c=wandb.config.c
-        w0=wandb.config.w0
-        w0_initial = wandb.config.w0_initial
+        c=5
+        w0=1
+        w0_initial = 5
         M = 3
-        weight_decay = wandb.config.weight_decay
+        weight_decay = 1e-3
 
         #CREATE DATASET
         path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
@@ -67,16 +68,14 @@ def train():
 
         #CREATE OPTIMIZER
 
-        gb.e_f = torch.tensor(pde_weights, requires_grad=True, dtype=torch.float32)
-        gb.e_b = torch.tensor(bc_weights, requires_grad=True, dtype=torch.float32)
-        gb.e_d = torch.tensor(data_weights, requires_grad=True, dtype=torch.float32)
-
         optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=weight_decay)
         inputs_not_sampled= data_handler.X_data
+
         
         #TRAINING
 
         pinn=True
+        loss_comb = loss_functions.CombinedLoss(pinn)
 
         print(pinn)
         if pinn:
@@ -88,12 +87,26 @@ def train():
 
         # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 1000
+        patience = 100000
         counter = 0
         
         for epoch in range(epochs):
-            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,points_sampled,pinn=pinn)
+            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,loss_comb,points_sampled,pinn=pinn)
             val_loss = model.test_epoch(val_dataset)
+
+            input_data = data_handler.X_data
+            input_data = input_data.to(gb.device)
+            previsions_pinn = model.make_previsions(input_data)
+
+            previsions_pinn = previsions_pinn.cpu().detach().numpy()
+            fft_result_full = np.concatenate((previsions_pinn, np.conj(np.fliplr(previsions_pinn[:, 1:]))), axis=1)
+            previsions_time = np.real(np.fft.ifft(fft_result_full))
+
+            # COMPUTE NMSE
+            drir_ref = data_handler.drir
+            drir_ref = torch.tensor(drir_ref, dtype=torch.float32)
+            drir_prev = torch.tensor(previsions_time, dtype=torch.float32)
+            mean_nmse_time, nmse_time = lf.NMSE(drir_ref, drir_prev)
 
             wandb.log({
                 "epoch":epoch,
@@ -104,7 +117,8 @@ def train():
                 "val_loss":val_loss,
                 "e_f":gb.e_f,
                 "e_d":gb.e_d,
-                "e_b":gb.e_b
+                "e_b":gb.e_b,
+                "nmse":mean_nmse_time
             }
             )
             if epoch % 10 == 0:
@@ -122,23 +136,6 @@ def train():
                 print(f"Early stopping after {epoch + 1} epochs.")
                 counter=0
                 break
-
-        input_data = data_handler.X_data
-        input_data = input_data.to(gb.device)
-        previsions_pinn = model.make_previsions(input_data)
-
-        previsions_pinn = previsions_pinn.cpu().detach().numpy()
-        fft_result_full = np.concatenate((previsions_pinn, np.conj(np.fliplr(previsions_pinn[:, 1:]))), axis=1)
-        previsions_time = np.real(np.fft.ifft(fft_result_full))
-
-        # COMPUTE NMSE
-        drir_ref = data_handler.drir
-        drir_ref = torch.tensor(drir_ref, dtype=torch.float32)
-        drir_prev = torch.tensor(previsions_time, dtype=torch.float32)
-        mean_nmse_time, nmse_time = lf.NMSE(drir_ref, drir_prev)
-
-        wandb.log({"nmse": mean_nmse_time})
-
         print('FINISHED')
 
 if __name__=="__main__":

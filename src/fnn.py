@@ -4,6 +4,7 @@ import global_variables as gb
 import loss_functions
 from siren import SIREN
 
+
 class PINN(nn.Module):
     """
     Physics-Informed Neural Network (PINN) class.
@@ -24,7 +25,7 @@ class PINN(nn.Module):
         network: network Siren
     """
 
-    def __init__(self, input_size, output_size, hidden_size, layers=5, w0=1.0, w0_init=10.0, c=6.0):
+    def __init__(self, input_size, output_size, hidden_size, layers=5,w0=1,w0_init=30,c=6):
         super(PINN, self).__init__()
 
         self.network_real= SIREN(
@@ -65,10 +66,11 @@ class PINN(nn.Module):
         # Forward pass through the deep network
         x_real = self.network_real(x)
         x_imag = self.network_imag(x)
+
         out = torch.complex(x_real, x_imag)
         return out
 
-    def train_epoch(self, loader, inputs_not_sampled, optimizer, points_sampled, pinn=False):
+    def train_epoch(self, loader, inputs_not_sampled, optimizer, loss_comb,points_sampled, pinn=False):
         """
         Train the PINN model for one epoch.
 
@@ -96,6 +98,7 @@ class PINN(nn.Module):
         cum_loss = []
 
         for _, (data, target) in enumerate(loader):
+            optimizer.zero_grad()
             x = data[:, 0].to(gb.device)
             y = data[:, 1].to(gb.device)
             z = data[:, 2].to(gb.device)
@@ -103,13 +106,11 @@ class PINN(nn.Module):
 
 
             predictions = self(x, y, z)
-            loss, loss_data, loss_pde,loss_bc= loss_functions.CombinedLoss(pinn)(predictions, target,inputs_not_sampled,self)
+            loss, loss_data, loss_pde,loss_bc = loss_comb(predictions, target,inputs_not_sampled,self)
             cum_loss_data.append(loss_data)
             cum_loss_pde.append(loss_pde)
             cum_loss_bc.append(loss_bc)
             cum_loss.append(loss)
-
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
@@ -138,7 +139,7 @@ class PINN(nn.Module):
                 targets = targets.to(gb.device)
                 predictions = self(x,y,z)
 
-                loss= loss_functions.DataTermLoss()(predictions,targets)
+                loss = loss_functions.DataTermLoss()(predictions,targets)
                 batch_losses.append(loss)
         
 

@@ -110,7 +110,7 @@ class DataHandler:
         for i in range(len(drir)):
             drir_down[i, :] = signal.resample_poly(drir[i,:],1,self.M)
 
-        self.NFFT_down = 5667
+        self.NFFT_down = 1025
         self.drir = np.array(drir_down)
 
 
