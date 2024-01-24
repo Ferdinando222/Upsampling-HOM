@@ -62,7 +62,6 @@ class PINN(nn.Module):
         """
 
         x = torch.stack([x, y, z], dim=1).to(gb.device)
-
         # Forward pass through the deep network
         x_real = self.network_real(x)
         x_imag = self.network_imag(x)
@@ -78,8 +77,7 @@ class PINN(nn.Module):
             loader (torch.utils.data.DataLoader): Data loader for training data.
             inputs_not_sampled (torch.Tensor): Inputs not sampled by the PINN.
             optimizer (torch.optim.Optimizer): Optimizer for model training.
-            data_weights (float): Weight for data term loss.
-            pde_weights (float): Weight for PDE term loss.
+            loss_comb : Loss for training
             points_sampled (int): Number of sampled points.
             pinn (bool): Flag to enable PINN training.
 
@@ -98,12 +96,10 @@ class PINN(nn.Module):
         cum_loss = []
 
         for _, (data, target) in enumerate(loader):
-            optimizer.zero_grad()
             x = data[:, 0].to(gb.device)
             y = data[:, 1].to(gb.device)
             z = data[:, 2].to(gb.device)
             target = target.to(gb.device)
-
 
             predictions = self(x, y, z)
             loss, loss_data, loss_pde,loss_bc = loss_comb(predictions, target,inputs_not_sampled,self)
@@ -111,6 +107,7 @@ class PINN(nn.Module):
             cum_loss_pde.append(loss_pde)
             cum_loss_bc.append(loss_bc)
             cum_loss.append(loss)
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
@@ -126,7 +123,8 @@ class PINN(nn.Module):
         mean_loss_bc = torch.mean(torch.tensor(cum_loss_bc, dtype=torch.float32))
 
         return mean_loss, mean_loss_data, mean_loss_pde,mean_loss_bc
-    
+
+
     def test_epoch(self, val_loader):
         batch_losses = []
         self.eval()
@@ -162,13 +160,14 @@ class PINN(nn.Module):
         Returns:
             nmse_db (float): Normalized Mean Squared Error (NMSE) in decibels (dB).
         """
-    
+        self.eval()
         X_data_not_sampled= data_handler.X_data
         X_data_not_sampled = X_data_not_sampled.to(gb.device)
         previsions = self.make_previsions(X_data_not_sampled)
         nmse = []
         normalized_output_data = torch.tensor(data_handler.NORMALIZED_OUTPUT, dtype=torch.cfloat)
         nmse.append(loss_functions.NMSE(normalized_output_data, previsions))
+        self.train()
 
         return nmse
 
@@ -189,3 +188,4 @@ class PINN(nn.Module):
         previsions = self(x, y, z)
         previsions = torch.tensor(previsions,dtype=torch.cfloat)
         return previsions
+

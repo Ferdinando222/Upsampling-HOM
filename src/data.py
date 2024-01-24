@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 import global_variables as gb
 import math
 from scipy import signal
+from torch.utils.data import TensorDataset
 
 class DataHandler:
     """
@@ -101,16 +102,16 @@ class DataHandler:
         NFFT = len(drir[0,:])
         self.NFFT_down = int(np.round(NFFT/M))
         print(self.NFFT_down)
-        drir_down = []
+
         #DOWNSAMPLING
         print("Undersampling...")
 
-        drir_down = np.zeros((1202, self.NFFT_down))
+        drir_down = np.zeros((len(drir), self.NFFT_down))
 
         for i in range(len(drir)):
             drir_down[i, :] = signal.resample_poly(drir[i,:],1,self.M)
 
-        self.NFFT_down = 1025
+        self.NFFT_down = 257
         self.drir = np.array(drir_down)
 
 
@@ -228,7 +229,8 @@ class DataHandler:
         
         matching_indices = np.array(matching_indices)
         print(matching_indices)
-
+        azimuth = self.azimuth[matching_indices]
+        col = self.colatitude[matching_indices]
         self.INPUT_SAMPLED = np.array(self.INPUT_SAMPLED)[matching_indices,:]
         self.OUTPUT_SAMPLED = np.array(self.drir)[matching_indices,:]
         self.drir_sampled = self.OUTPUT_SAMPLED
@@ -260,9 +262,11 @@ class DataHandler:
             train_dataloader (DataLoader): DataLoader for training data.
             test_dataloader (DataLoader): DataLoader for validation data.
         """
-        dataset_sampled = list(zip(self.X_sampled, self.Y_sampled))
-        dataset_not_sampled = list(zip(self.X_not_sampled,self.Y_not_sampled))
-        train_dataloader = DataLoader(dataset_sampled, batch_size=batch_size, shuffle=True)
-        test_dataloader = DataLoader(dataset_not_sampled,batch_size=batch_size,shuffle=True)
+
+        train_dataset = TensorDataset(torch.tensor(self.X_sampled), torch.tensor(self.Y_sampled))
+        val_dataset = TensorDataset(torch.tensor(self.X_not_sampled), torch.tensor(self.Y_not_sampled))
+
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+        test_dataloader = DataLoader(val_dataset, batch_size=128, shuffle=False)
 
         return train_dataloader,test_dataloader

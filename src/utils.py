@@ -12,9 +12,9 @@ def plot_model(data,previsions,points_sampled,pinn,index):
     # original_imag = gb.scaler_i_s.inverse_transform(prev_imag)
     # previsions  = original_real + 1j * original_imag
     input_sampled = data.X_sampled
-    x = input_sampled[:,0].cpu().detach().numpy()
-    y =input_sampled[:,1].cpu().detach().numpy()
-    z = input_sampled[:,2].cpu().detach().numpy()
+    x = input_sampled[::5,0].cpu().detach().numpy()
+    y =input_sampled[::5,1].cpu().detach().numpy()
+    z = input_sampled[::5,2].cpu().detach().numpy()
 
     azimuth_sampled,colatitude_sampled,_ = utils.cart2sph((x,y,z))
     microphone_positions = np.column_stack((azimuth_sampled, colatitude_sampled))
@@ -71,7 +71,7 @@ def plot_model(data,previsions,points_sampled,pinn,index):
     
     cbar2 = plt.colorbar(sc2, label='Pressure Difference', ax=ax2)
     cbar2.set_ticks([-1,-0.5,0,0.5, 1])
-    cbar2.set_ticklabels(['-1','-o.5','0', '0.5', '1'])
+    cbar2.set_ticklabels(['-1','-0.5','0', '0.5', '1'])
 
     frequency_label = f"Frequenza: {gb.frequency[index]} Hz"
     ax.text(1, 0, frequency_label, transform=ax.transAxes, ha='right', va='bottom', color='black', fontsize=12)

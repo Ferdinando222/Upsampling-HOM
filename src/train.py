@@ -16,17 +16,17 @@ sweep_configuration = {
     "name": "Training pinn with different hidden size",
     "metric": {"goal": "minimize", "name": "nmse"},
     "parameters": {
-        #"batch_size": {"values": [16,32,64,128]},
-        #"learning_rate": {"values":[0.01,0.001,0.0001]},
-        #"hidden_size":{"values":[1024,512,256]},
-        #"layer":{"max":8,"min":3},
-        "pde_weights":{"values":[1e-7]},
+        #"batch_size": {"values": [8,16,128]},
+        ##"learning_rate": {"values":[0.01,0.001,0.0001]},
+        #"hidden_size":{"values":[512,256,128]},
+        #"layer":{"max":6,"min":3},
+        "pde_weights":{"values":[1e-6,5e-6,1e-5]},
         #"data_weights":{"max":2.0,"min":0.0001},
         #"bc_weights":{"max":5e-5,"min":1e-25},
-        #"c":{"max":5,"min":1},
+        #"c":{"max":10,"min":1},
         #"w0":{"max":10,"min":1},
         #"w0_initial":{"max":15,"min":1},
-        #"weight_decay":{"values":[1e-2,1e-3,1e-4,1e-5]}
+        #"weight_decay":{"values":[1e-3,1e-4]}
     },
 }
 
@@ -37,16 +37,15 @@ sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-nopinn-{g
 #%%
 
 def train():
-    epochs = 100000
+    epochs = 5000
     with wandb.init():
 
         #HYPERPARAMETERS
-        hidden_size = 512
-        layers = 5
+        hidden_size = 256
+        layers = 4
         batch_size = 128
         learning_rate = 0.001
         data_weights = 1
-        pde_weights = 1e-4
         bc_weights=0
         c=5
         w0=1
@@ -62,6 +61,7 @@ def train():
         gb.points_sampled = points_sampled
         train_dataset,val_dataset = data_handler.data_loader(batch_size)
 
+
         #CREATE_NETWORK
         model = fnn.PINN(gb.input_dim,gb.output_dim,hidden_size,layers,w0,w0_initial,c)
         model = model.to(gb.device)
@@ -69,6 +69,7 @@ def train():
         #CREATE OPTIMIZER
 
         optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=weight_decay)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=500, factor=0.1, verbose=True,min_lr=1e-5,cooldown=1500)
         inputs_not_sampled= data_handler.X_data
 
         
@@ -76,6 +77,7 @@ def train():
 
         pinn=True
         loss_comb = loss_functions.CombinedLoss(pinn)
+
 
         print(pinn)
         if pinn:
@@ -87,12 +89,14 @@ def train():
 
         # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 100000
+        patience = 200
         counter = 0
         
         for epoch in range(epochs):
-            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,loss_comb,points_sampled,pinn=pinn)
+            loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,loss_comb,
+                                                                points_sampled,pinn=pinn)
             val_loss = model.test_epoch(val_dataset)
+            #scheduler.step(val_loss)
 
             input_data = data_handler.X_data
             input_data = input_data.to(gb.device)
@@ -106,7 +110,7 @@ def train():
             drir_ref = data_handler.drir
             drir_ref = torch.tensor(drir_ref, dtype=torch.float32)
             drir_prev = torch.tensor(previsions_time, dtype=torch.float32)
-            mean_nmse_time, nmse_time = lf.NMSE(drir_ref, drir_prev)
+            mean_nmse_time, nmse_time,_ = lf.NMSE(drir_ref, drir_prev)
 
             wandb.log({
                 "epoch":epoch,
@@ -118,7 +122,8 @@ def train():
                 "e_f":gb.e_f,
                 "e_d":gb.e_d,
                 "e_b":gb.e_b,
-                "nmse":mean_nmse_time
+                "nmse":mean_nmse_time,
+                "learning_rate":optimizer.param_groups[0]['lr']
             }
             )
             if epoch % 10 == 0:
@@ -137,6 +142,9 @@ def train():
                 counter=0
                 break
         print('FINISHED')
+    # Path to save model
+    path_saving = f"../src/models/models_{len(inputs_not_sampled)}_{gb.output_dim}_{points_sampled}.pth"
+    torch.save(model.state_dict(), path_saving)
 
 if __name__=="__main__":
     #TRAINING 
