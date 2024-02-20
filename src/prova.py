@@ -8,12 +8,12 @@ import torch
 import torch.optim as optim
 import loss_functions
 
-path_data = "../dataset/DRIR_CR1_VSA_86RS_R.sofa"
+path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
 #DOWNSAMPLING FACTOR
 M = 3
 NFFT = int(np.round(17000/M))
 data_handler = dt.DataHandler(path_data,M)
-data_handler.remove_points(1)
+data_handler.remove_points(2)
 points_sampled =len(data_handler.INPUT_SAMPLED)
 gb.points_sampled = points_sampled
 print(points_sampled)
@@ -23,7 +23,7 @@ inputs_not_sampled= data_handler.X_data
 # %%
  #CREATE_NETWORK
 learning_rate = 0.001
-model = fnn.PINN(gb.input_dim,gb.output_dim,512,3,1,5,5)
+model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,1,5,5)
 model = model.to(gb.device)
 
 ## Point|  NN  | Reg
@@ -37,17 +37,17 @@ model = model.to(gb.device)
 ##   5  | 512-5 | 1e-3  --> -5
 ##   6  | 512-5 | 1e-3  --> -6.5
 #CREATE OPTIMIZER
-optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=8e-3)
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=4000, factor=0.1, verbose=True, min_lr=1e-6)
+optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-3)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=400, factor=0.1, verbose=True, min_lr=1e-6)
 pinn= False
 loss_comb= loss_functions.CombinedLoss(pinn)
 
 best_val_loss = float('inf')
-patience =1000
+patience =400
 counter = 0
 
 print(gb.device)
-for epoch in range(4000):
+for epoch in range(10000):
     loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,loss_comb,points_sampled,pinn=pinn)
     val_loss = model.test_epoch(val_dataset)
     #scheduler.step(val_loss)
@@ -99,7 +99,7 @@ previsions_time = np.real(np.fft.ifft(fft_result_full))
 drir_ref = data_handler.drir
 drir_ref = torch.tensor(drir_ref,dtype=torch.float32)
 drir_prev = torch.tensor(previsions_time,dtype=torch.float32)
-mean_nmse_time,nmse_time= lf.NMSE(drir_ref,drir_prev)
+mean_nmse_time,nmse_time,_= lf.NMSE(drir_ref,drir_prev)
 
 print(mean_nmse_time)
 
@@ -142,8 +142,8 @@ from sound_field_analysis import utils as ut
 import matplotlib.colors as mcolors
 plt.figure(4)
 
-az = data_handler.azimuth
-col = data_handler.colatitude
+az = data_handler.colatitude
+col = data_handler.azimuth
 
 
 # Creare lo scatter plot
@@ -192,3 +192,5 @@ plt.xticks(azimuth_ticks, ['0', 'π/2', 'π', '2π'])
 plt.yticks(colatitude_ticks, ['0', 'π/2', 'π'])
 
 plt.show()
+
+# %%

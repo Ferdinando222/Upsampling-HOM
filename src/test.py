@@ -1,3 +1,4 @@
+# %%
 import torch
 import torch.nn as nn
 import fnn
@@ -11,17 +12,17 @@ import utils
 from sound_field_analysis import utils as ut
 
 #IMPORT PATH
-path_saving = "../src/models/models_1202_129_38.pth"
+path_saving = "../src/models/models_32_513_14.pth"
 path_sarita_freq = "../dataset/nmse_db_sarita_down16-1024.csv"
-path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
-path_sarita_time = "../dataset/nmse_CHANNEL_86_4-1024.csv"
+path_data = "../dataset/dataset_daga/Pos2_DRIR_LS_0.sofa"
+path_sarita_time = "../dataset/nmse_CHANNEL_32_14-513.csv"
 
 #EXTRACT DATA
 sarita_nmse_freq = pd.read_csv(path_sarita_freq ).values
 sarita_nmse = pd.read_csv(path_sarita_time).values
 M = 3
 data_handler = dt.DataHandler(path_data,M)
-data_handler.remove_points(4)
+data_handler.remove_points(2)
 points_sampled =len(data_handler.INPUT_SAMPLED)
 gb.points_sampled = points_sampled
 print(points_sampled)
@@ -29,7 +30,7 @@ train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 
 #CREATE MODEL
-model = fnn.PINN(gb.input_dim,gb.output_dim,256,4,1,5,5).to(gb.device)
+model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,1,5,5).to(gb.device)
 model.load_state_dict(torch.load(path_saving))
 model.eval()
 
@@ -80,6 +81,7 @@ previsions_pinn = previsions_pinn[:,index]
 previsions_pinn = np.squeeze(previsions_pinn)
 utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn,index)
 
+#%%
 ##Plot average NMSE for each channel
 plt.figure(4)
 
@@ -123,3 +125,5 @@ plt.show()
 
 
 
+
+# %%

@@ -37,11 +37,11 @@ sweep_id = wandb.sweep(sweep=sweep_configuration, project=f"UPSAMPLING-nopinn-{g
 #%%
 
 def train():
-    epochs = 5000
+    epochs = 10000
     with wandb.init():
 
         #HYPERPARAMETERS
-        hidden_size = 256
+        hidden_size = 512
         layers = 4
         batch_size = 128
         learning_rate = 0.001
@@ -54,9 +54,9 @@ def train():
         weight_decay = 1e-3
 
         #CREATE DATASET
-        path_data = "../dataset/DRIR_CR1_VSA_1202RS_R.sofa"
+        path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
         data_handler = dt.DataHandler(path_data,M)
-        data_handler.remove_points(4)
+        data_handler.remove_points(2)
         points_sampled =len(data_handler.INPUT_SAMPLED)
         gb.points_sampled = points_sampled
         train_dataset,val_dataset = data_handler.data_loader(batch_size)
@@ -68,8 +68,8 @@ def train():
 
         #CREATE OPTIMIZER
 
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=weight_decay)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=500, factor=0.1, verbose=True,min_lr=1e-5,cooldown=1500)
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=4000, factor=0.1, verbose=True,min_lr=1e-5,cooldown=1500)
         inputs_not_sampled= data_handler.X_data
 
         

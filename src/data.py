@@ -1,4 +1,5 @@
-from sound_field_analysis import io, utils, gen
+from sound_field_analysis import io, utils, gen,process
+import sound_field_analysis as sfa
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -6,6 +7,11 @@ import global_variables as gb
 import math
 from scipy import signal
 from torch.utils.data import TensorDataset
+
+import matplotlib.pyplot as plt
+
+
+process.spatFT
 
 class DataHandler:
     """
@@ -97,6 +103,11 @@ class DataHandler:
         # Read the SOFA file
         DRIR = io.read_SOFA_file(sofa_file_path)
         drir = DRIR.signal.signal
+
+        # Control if the drir signal has the following shape [signal,mic]
+        if(len(drir) != len(DRIR.grid.azimuth)):
+            drir = drir.T
+
         grid = DRIR.grid
         fs = int(DRIR.signal.fs/M)
         NFFT = len(drir[0,:])
@@ -111,7 +122,7 @@ class DataHandler:
         for i in range(len(drir)):
             drir_down[i, :] = signal.resample_poly(drir[i,:],1,self.M)
 
-        self.NFFT_down = 257
+        self.NFFT_down = 1025
         self.drir = np.array(drir_down)
 
 
@@ -137,8 +148,8 @@ class DataHandler:
         print("Shape FFT:",len(self.OUTPUT_DATA),len(self.OUTPUT_DATA[0,:]))
 
         # Extract spherical coordinates
-        self.azimuth = grid.azimuth
-        self.colatitude = grid.colatitude
+        self.colatitude = np.mod(grid.azimuth,2*np.pi)
+        self.azimuth = np.mod(grid.colatitude,2*np.pi)
         self.radius = grid.radius
 
         # Convert spherical coordinates to Cartesian coordinates
@@ -146,8 +157,9 @@ class DataHandler:
 
         self.INPUT_DATA = list(zip(self.x, self.y, self.z))
 
+
         # Check on INPUT_DATA AND OUTPUT_DATA
-        assert len(self.INPUT_DATA) == len(DRIR.signal.signal)
+        assert len(self.INPUT_DATA) == len(drir)
         assert len(self.INPUT_DATA) == len(self.OUTPUT_DATA)
 
 
@@ -199,8 +211,8 @@ class DataHandler:
 
         def distance(point1, point2, radius=1.0):
             # Convert spherical coordinates to radians
-            phi1, theta1 = np.radians(point1)
-            phi2, theta2 = np.radians(point2)
+            phi1, theta1 = point1
+            phi2, theta2 = point2
 
             # Compute spherical distance
             d = math.acos(np.sin(phi1) * np.sin(phi2) + np.cos(phi1) * np.cos(phi2) * np.cos(theta1 - theta2)) * radius
@@ -231,6 +243,29 @@ class DataHandler:
         print(matching_indices)
         azimuth = self.azimuth[matching_indices]
         col = self.colatitude[matching_indices]
+
+        # Conversione in radianti per il plot
+        azimuth_rad = self.azimuth
+        colatitude_rad = self.colatitude
+        azimuth_un = azimuth
+        colatitude_un = col
+
+        # Plot
+        fig = plt.figure(figsize=(8, 6))
+        ax = fig.add_subplot(111,projection='polar')
+
+        # Plot dei punti
+        ax.scatter(azimuth_rad, colatitude_rad, marker='o', color='blue')
+        ax.scatter(azimuth_un, colatitude_un, marker='o', color='red')
+        ax.scatter(az_und,col_und,marker='x',color='green')
+
+        ax.set_theta_zero_location('N')  # Imposta zero a nord
+        ax.set_theta_direction(-1)  # Orientazione antioraria
+        # Personalizzazione
+        ax.set_title('Plot delle posizioni in coordinate sferiche', va='bottom')
+        ax.grid(True)
+
+        plt.show()
         self.INPUT_SAMPLED = np.array(self.INPUT_SAMPLED)[matching_indices,:]
         self.OUTPUT_SAMPLED = np.array(self.drir)[matching_indices,:]
         self.drir_sampled = self.OUTPUT_SAMPLED
