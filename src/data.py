@@ -1,5 +1,4 @@
-from sound_field_analysis import io, utils, gen,process
-import sound_field_analysis as sfa
+from sound_field_analysis import io, utils, gen
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -10,8 +9,6 @@ from torch.utils.data import TensorDataset
 
 import matplotlib.pyplot as plt
 
-
-process.spatFT
 
 class DataHandler:
     """
@@ -108,7 +105,8 @@ class DataHandler:
         if(len(drir) != len(DRIR.grid.azimuth)):
             drir = drir.T
 
-        grid = DRIR.grid
+        self.grid = DRIR.grid
+        self.configuration = DRIR.configuration
         fs = int(DRIR.signal.fs/M)
         NFFT = len(drir[0,:])
         self.NFFT_down = int(np.round(NFFT/M))
@@ -148,9 +146,9 @@ class DataHandler:
         print("Shape FFT:",len(self.OUTPUT_DATA),len(self.OUTPUT_DATA[0,:]))
 
         # Extract spherical coordinates
-        self.colatitude = np.mod(grid.azimuth,2*np.pi)
-        self.azimuth = np.mod(grid.colatitude,2*np.pi)
-        self.radius = grid.radius
+        self.colatitude = np.mod(self.grid.azimuth,2*np.pi)
+        self.azimuth = np.mod(self.grid.colatitude,2*np.pi)
+        self.radius = self.grid.radius
 
         # Convert spherical coordinates to Cartesian coordinates
         self.x, self.y, self.z = utils.sph2cart((self.azimuth, self.colatitude, self.radius))
@@ -250,19 +248,23 @@ class DataHandler:
         azimuth_un = azimuth
         colatitude_un = col
 
+        gb.spherical_grid = io.SphericalGrid(azimuth_un,colatitude_un,self.radius[0:len(azimuth_un)])
+
         # Plot
         fig = plt.figure(figsize=(8, 6))
         ax = fig.add_subplot(111,projection='polar')
 
         # Plot dei punti
         ax.scatter(azimuth_rad, colatitude_rad, marker='o', color='blue')
-        ax.scatter(azimuth_un, colatitude_un, marker='o', color='red')
+        ax.scatter(azimuth_un, colatitude_un, marker='o', color='red',facecolors='none')
         ax.scatter(az_und,col_und,marker='x',color='green')
 
         ax.set_theta_zero_location('N')  # Imposta zero a nord
         ax.set_theta_direction(-1)  # Orientazione antioraria
         # Personalizzazione
         ax.set_title('Plot delle posizioni in coordinate sferiche', va='bottom')
+        ax.legend(['GROUND TRUTH', 'UNDER_SAMPLING', 'LEBEDEV_UNDER'], loc='upper right')
+
         ax.grid(True)
 
         plt.show()
@@ -302,6 +304,6 @@ class DataHandler:
         val_dataset = TensorDataset(torch.tensor(self.X_not_sampled), torch.tensor(self.Y_not_sampled))
 
         train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
-        test_dataloader = DataLoader(val_dataset, batch_size=128, shuffle=False)
+        test_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
         return train_dataloader,test_dataloader

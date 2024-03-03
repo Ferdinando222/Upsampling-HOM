@@ -37,17 +37,17 @@ model = model.to(gb.device)
 ##   5  | 512-5 | 1e-3  --> -5
 ##   6  | 512-5 | 1e-3  --> -6.5
 #CREATE OPTIMIZER
-optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-3)
+optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=400, factor=0.1, verbose=True, min_lr=1e-6)
 pinn= False
 loss_comb= loss_functions.CombinedLoss(pinn)
 
 best_val_loss = float('inf')
-patience =400
+patience =100
 counter = 0
 
 print(gb.device)
-for epoch in range(10000):
+for epoch in range(200):
     loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,loss_comb,points_sampled,pinn=pinn)
     val_loss = model.test_epoch(val_dataset)
     #scheduler.step(val_loss)

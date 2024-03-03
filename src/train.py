@@ -41,8 +41,8 @@ def train():
     with wandb.init():
 
         #HYPERPARAMETERS
-        hidden_size = 512
-        layers = 4
+        hidden_size = 16
+        layers = 1
         batch_size = 128
         learning_rate = 0.001
         data_weights = 1
@@ -75,7 +75,7 @@ def train():
         
         #TRAINING
 
-        pinn=True
+        pinn=False
         loss_comb = loss_functions.CombinedLoss(pinn)
 
 
@@ -89,41 +89,42 @@ def train():
 
         # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 200
+        patience = 100
         counter = 0
         
         for epoch in range(epochs):
             loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,loss_comb,
                                                                 points_sampled,pinn=pinn)
             val_loss = model.test_epoch(val_dataset)
-            #scheduler.step(val_loss)
+            # scheduler.step(val_loss)
 
             input_data = data_handler.X_data
             input_data = input_data.to(gb.device)
+
             previsions_pinn = model.make_previsions(input_data)
 
             previsions_pinn = previsions_pinn.cpu().detach().numpy()
             fft_result_full = np.concatenate((previsions_pinn, np.conj(np.fliplr(previsions_pinn[:, 1:]))), axis=1)
             previsions_time = np.real(np.fft.ifft(fft_result_full))
 
-            # COMPUTE NMSE
+            # # COMPUTE NMSE
             drir_ref = data_handler.drir
             drir_ref = torch.tensor(drir_ref, dtype=torch.float32)
             drir_prev = torch.tensor(previsions_time, dtype=torch.float32)
             mean_nmse_time, nmse_time,_ = lf.NMSE(drir_ref, drir_prev)
 
             wandb.log({
-                "epoch":epoch,
-                "loss":loss,
-                "loss_data":loss_data,
-                "loss_pde":torch.mean(loss_pde),
-                "loss_bc":loss_bc,
-                "val_loss":val_loss,
-                "e_f":gb.e_f,
-                "e_d":gb.e_d,
-                "e_b":gb.e_b,
-                "nmse":mean_nmse_time,
-                "learning_rate":optimizer.param_groups[0]['lr']
+                "epoch": epoch,
+                "loss": loss,
+                "loss_data": loss_data,
+                "loss_pde": torch.mean(loss_pde),
+                "loss_bc": loss_bc,
+                "val_loss": val_loss,
+                "e_f": gb.e_f,
+                "e_d": gb.e_d,
+                "e_b": gb.e_b,
+                "nmse": mean_nmse_time,
+                "learning_rate": optimizer.param_groups[0]['lr']
             }
             )
             if epoch % 10 == 0:

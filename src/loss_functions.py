@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 import global_variables as gb
-import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint
+from sound_field_analysis import process
+from scipy import special
+
 
 # Import necessary libraries and modules
 EPS = 1e-8
@@ -28,9 +29,6 @@ class DataTermLoss(nn.Module):
         Returns:
             loss (torch.Tensor): The calculated loss.
         """
-
-
-
         mse =torch.mean(torch.abs(target-predictions)**2,dim=1)
         loss = torch.mean(mse)
 
