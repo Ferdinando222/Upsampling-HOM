@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import global_variables as gb
+import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 
@@ -221,19 +222,17 @@ def NMSE(normalized_output, predictions):
     predictions = predictions.to(gb.device)
 
     # Calculate Mean Squared Error (MSE)
-    mse = torch.abs(normalized_output - predictions) ** 2
-
-    mse = torch.sum(mse,dim=1)
-
-    norm = torch.sum(torch.abs(normalized_output) ** 2,dim=1)
+    mse = (normalized_output - predictions) ** 2
+    mse = torch.sum(mse, dim=1)
+    norm = torch.sum(normalized_output ** 2, dim=1)
 
     # Calculate NMSE in dB
     nmse = mse / norm
-    std_dev_db = torch.std(nmse)
+    std_dev = torch.std(nmse)
     nmse_db = 10 * torch.log10(torch.mean(nmse))
-
-
-    return nmse_db,nmse,std_dev_db
+    nmse_db_p = 10*torch.log10(nmse)
+    nmse_db_p = torch.mean(nmse_db_p)
+    return nmse_db, nmse, std_dev
 
 def NMSE_freq(normalized_output, predictions):
     """

@@ -14,7 +14,7 @@ from sound_field_analysis import utils as ut
 #IMPORT PATH
 path_saving = "../src/models/models_32_513_14.pth"
 path_sarita_freq = "../dataset/nmse_db_sarita_down16-1024.csv"
-path_data = "../dataset/dataset_daga/Pos2_DRIR_LS_0.sofa"
+path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
 path_sarita_time = "../dataset/nmse_CHANNEL_32_14-513.csv"
 
 #EXTRACT DATA
@@ -30,28 +30,30 @@ train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 
 #CREATE MODEL
-model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,1,5,5).to(gb.device)
-model.load_state_dict(torch.load(path_saving))
+model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,2,5,5).to(gb.device)
+model.load_state_cust_dict(torch.load(path_saving))
 model.eval()
 
 
 
-##PRINT RESULTS
+## PRINT RESULTS
 
-#Make previsions
-input_data = data_handler.X_data
-input_data = input_data.to(gb.device)
+# Make previsions
+input_data = data_handler.X_data.to(gb.device)
 previsions_pinn = model.make_previsions(input_data)
-mean_nmse_fre,nmse_freq = lf.NMSE_freq(torch.tensor(data_handler.NORMALIZED_OUTPUT,dtype=torch.cfloat),previsions_pinn)
+mean_nmse_fre,nmse_freq = lf.NMSE_freq(torch.tensor(data_handler.NORMALIZED_OUTPUT, dtype=torch.cfloat), previsions_pinn)
 previsions_pinn = previsions_pinn.cpu().detach().numpy()
 fft_result_full = np.concatenate((previsions_pinn, np.conj(np.fliplr(previsions_pinn[:, 1:]))), axis=1)
 previsions_time = np.real(np.fft.ifft(fft_result_full))
 
-#Compute NMSE in time for each channel and NMSE in frequency
+
+# Compute NMSE in time for each channel and NMSE in frequency
 drir_ref = data_handler.drir
 drir_ref = torch.tensor(drir_ref,dtype=torch.float32)
 drir_prev = torch.tensor(previsions_time,dtype=torch.float32)
 mean_nmse_time,nmse_time,std_dev= lf.NMSE(drir_ref,drir_prev)
+
+diff = np.abs(drir_ref.cpu().numpy()-previsions_time)
 
 print("NMSE TIME:",mean_nmse_time,std_dev)
 print("NMSE FREQ:",mean_nmse_fre)
@@ -63,15 +65,16 @@ plt.show()
 
 #Plot signal in time
 plt.figure(2)
-plt.plot(drir_ref[23,:])
-plt.plot(drir_prev[23,:],'--')
+plt.plot(drir_ref[30,:])
+plt.plot(drir_prev[30,:],'--')
 plt.show()
 
 #Plot NMSE in frequency
 plt.figure(3)
 sarita_nmse_freq = np.array(sarita_nmse_freq)
-plt.plot(data_handler.frequencies,10*torch.log10(nmse_freq.cpu()))
-plt.plot(data_handler.frequencies,10*np.log10(sarita_nmse_freq.T))
+plt.plot(data_handler.frequencies,10*torch.log10(nmse_freq.cpu()),label="PINN")
+plt.plot(data_handler.frequencies,10*np.log10(sarita_nmse_freq.T),label="SARITA")
+plt.legend()
 plt.show()
 
 ##Plot Magnitude signal for each channel with fixed frequency
