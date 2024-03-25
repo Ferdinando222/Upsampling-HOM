@@ -1,4 +1,4 @@
-from sound_field_analysis import io, utils, gen
+from sound_field_analysis import io, utils, gen, process
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -307,3 +307,8 @@ class DataHandler:
         test_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
         return train_dataloader,test_dataloader
+    
+    def compute_sh(self,order):
+        gb.sh_lower = process.spatFT(self.NORMALIZED_OUTPUT_SAMPLED,gb.spherical_grid,order)
+
+        

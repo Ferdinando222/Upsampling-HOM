@@ -19,6 +19,7 @@ gb.points_sampled = points_sampled
 print(points_sampled)
 train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
+data_handler.compute_sh(2)
 
 # %%
  #CREATE_NETWORK

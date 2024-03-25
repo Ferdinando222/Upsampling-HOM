@@ -75,8 +75,7 @@ class PINN(nn.Module):
 
         out = torch.complex(x_real, x_imag)
         N = 6
-        out = torch.reshape(out,(x.size(0),(N+1)**2,-1))
-
+        out = torch.reshape(out,(x.size(0),(N+1)**2-9,-1))
 
         P_values = torch.zeros(x.size(0),len(gb.frequency), dtype=torch.cfloat).to(gb.device)
         
@@ -85,10 +84,16 @@ class PINN(nn.Module):
             P = 0.0
             i  = 0
             for n in range(N + 1):
+                if(n>2):
+                    i=0
                 for m in range(-n, n + 1):
                     Y_nm = sh.spherical_harmonics(theta,phi,n,m)  # Armonici sferici
                     j_nkr = sh.spherical_bessel(n, torch.tensor(k,dtype=torch.float32),r)  # Funzione di Bessel sferica
-                    A_nm = out[:,i,idx] # Coefficienti sferici casuali (puoi sostituirli con i tuoi valori)
+                    if(n<=2):
+                        A_nm = torch.tensor(gb.sh_lower[i,idx],dtype=torch.cfloat)
+
+                    else:
+                        A_nm = out[:,i,idx] 
 
                     # Somma il contributo di questa armonica sferica al campo acustico totale
                     P += Y_nm * A_nm * j_nkr
