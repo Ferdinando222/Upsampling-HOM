@@ -9,3 +9,4 @@ runs_pde
 result_pde
 wandb
 dataset
+models
