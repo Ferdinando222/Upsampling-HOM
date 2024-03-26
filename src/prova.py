@@ -8,7 +8,7 @@ import torch
 import torch.optim as optim
 import loss_functions
 
-path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
+path_data = "../dataset/dataset_sarita/DRIR_CR1_VSA_1202RS_R.sofa"
 #DOWNSAMPLING FACTOR
 M = 3
 NFFT = int(np.round(17000/M))

@@ -148,8 +148,11 @@ class DataHandler:
         print("Shape FFT:",len(self.OUTPUT_DATA),len(self.OUTPUT_DATA[0,:]))
 
         # Extract spherical coordinates
-        self.colatitude = np.mod(grid.azimuth,2*np.pi)
-        self.azimuth = np.mod(grid.colatitude,2*np.pi)
+        # DELET COMMENT FOR DATASET DAGA
+        #self.colatitude = np.mod(grid.azimuth,2*np.pi)
+        #self.azimuth = np.mod(grid.colatitude,2*np.pi)
+        self.colatitude =grid.colatitude
+        self.azimuth = grid.azimuth
         self.radius = grid.radius
 
         # Convert spherical coordinates to Cartesian coordinates
@@ -255,6 +258,7 @@ class DataHandler:
         ax = fig.add_subplot(111,projection='polar')
 
         # Plot dei punti
+        print(azimuth_rad,colatitude_rad)
         ax.scatter(azimuth_rad, colatitude_rad, marker='o', color='blue')
         ax.scatter(azimuth_un, colatitude_un, marker='o', color='red')
         ax.scatter(az_und,col_und,marker='x',color='green')
@@ -279,7 +283,10 @@ class DataHandler:
         self.OUTPUT_NOT_SAMPLED = self.OUTPUT_NOT_SAMPLED[:,:int(np.ceil(self.NFFT_down/2))]
 
         # Check input and ouput have the same size of points_sampled
+        print(len(mic_under))
+        print(len(self.INPUT_DATA))
         assert len(self.INPUT_SAMPLED) == len(self.OUTPUT_SAMPLED) == len(mic_under) 
+        print(len(self.INPUT_NOT_SAMPLED),len(self.OUTPUT_NOT_SAMPLED),len(self.INPUT_DATA)-len(mic_under) )
         assert len(self.INPUT_NOT_SAMPLED) == len(self.OUTPUT_NOT_SAMPLED) == (len(self.INPUT_DATA)-len(mic_under))
 
         # Normalize and create tensors

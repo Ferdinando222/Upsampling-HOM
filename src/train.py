@@ -55,7 +55,7 @@ def train():
         weight_decay = 1e-3
 
         #CREATE DATASET
-        path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
+        path_data = "../dataset/dataset_sarita/DRIR_CR1_VSA_1202RS_R.sofa"
         data_handler = dt.DataHandler(path_data,M)
         data_handler.remove_points(2)
         points_sampled =len(data_handler.INPUT_SAMPLED)
@@ -69,7 +69,7 @@ def train():
 
         #CREATE OPTIMIZER
 
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-4)
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
         #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=4000, factor=0.1, verbose=True,min_lr=1e-5,cooldown=1500)
         inputs_not_sampled= data_handler.X_data
 
