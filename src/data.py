@@ -149,10 +149,10 @@ class DataHandler:
 
         # Extract spherical coordinates
         # DELET COMMENT FOR DATASET DAGA
-        #self.colatitude = np.mod(grid.azimuth,2*np.pi)
-        #self.azimuth = np.mod(grid.colatitude,2*np.pi)
-        self.colatitude =grid.colatitude
-        self.azimuth = grid.azimuth
+        self.colatitude = np.mod(grid.azimuth,2*np.pi)
+        self.azimuth = np.mod(grid.colatitude,2*np.pi)
+        #self.colatitude =grid.colatitude
+        #self.azimuth = grid.azimuth
         self.radius = grid.radius
 
         # Convert spherical coordinates to Cartesian coordinates

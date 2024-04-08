@@ -21,19 +21,21 @@ class Sine(nn.Module):
         """
 
         super(Sine, self).__init__()
-        self.w0 = nn.Parameter(torch.tensor([w0]))
-        self.w1 = nn.Parameter(torch.tensor(0.1))
-        self.w2 = nn.Parameter(torch.tensor(0.01))
-        self.w3 = nn.Parameter(torch.tensor(0.001))
-        self.w4 = nn.Parameter(torch.tensor(10.0))
-        self.w5 = nn.Parameter(torch.tensor(20.0))
-        self.w6 = nn.Parameter(torch.tensor(30.0))
+        self.w0  = w0
+        # self.w0 = nn.Parameter(torch.tensor([w0]))
+        # self.w1 = nn.Parameter(torch.tensor(0.1))
+        # self.w2 = nn.Parameter(torch.tensor(0.01))
+        # self.w3 = nn.Parameter(torch.tensor(0.001))
+        # self.w4 = nn.Parameter(torch.tensor(10.0))
+        # self.w5 = nn.Parameter(torch.tensor(20.0))
+        # self.w6 = nn.Parameter(torch.tensor(30.0))
         
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         self._check_input(x)
-        return torch.sin(self.w0 * x)+torch.sin(self.w1*x)+torch.sin(self.w2*x)+torch.sin(self.w3*x)\
-                +0.01*torch.sin(self.w4*x)+0.01*torch.sin(self.w5*x)
+        return torch.sin(self.w0 * x)
+    # +torch.sin(self.w1*x)+torch.sin(self.w2*x)+torch.sin(self.w3*x)\
+    #             +0.01*torch.sin(self.w4*x)+0.01*torch.sin(self.w5*x)
 
     @staticmethod
     def _check_input(x):
@@ -84,34 +86,6 @@ class PINN(nn.Module):
 
         self.layers_imag.append(nn.Linear(layers[-1], output_size, bias=True))
         self.network_imag = nn.Sequential(*self.layers_imag)
-
-        
-
-    
-        # SIREN WITH ROWDY
-
-
-         # Initializing adaptive activation function parameters
-        #self.a1 = nn.ParameterList([nn.Parameter(torch.ones(1)*0.0001) for _ in range(self.hidden_layers)])
-        # self.a2 = nn.ParameterList([nn.Parameter(torch.ones(1)*0.0001) for _ in range(self.hidden_layers)])
-        # self.a3 = nn.ParameterList([nn.Parameter(torch.ones(1)*0.0001) for _ in range(self.hidden_layers)])
-        # self.a4 = nn.ParameterList([nn.Parameter(torch.ones(1)*0.0001) for _ in range(self.hidden_layers)])
-        # self.a5 = nn.ParameterList([nn.Parameter(torch.ones(1)*0.0001) for _ in range(self.hidden_layers)])
-        # self.a6 = nn.ParameterList([nn.Parameter(torch.ones(1)*0.0001) for _ in range(self.hidden_layers)])
-        # self.a7 = nn.ParameterList([nn.Parameter(torch.ones(1)*0.0001) for _ in range(self.hidden_layers)])
-        # self.a8 = nn.ParameterList([nn.Parameter(torch.ones(1)*0.0001) for _ in range(self.hidden_layers)])
-        # self.a9 = nn.ParameterList([nn.Parameter(torch.ones(1)*0.0001) for _ in range(self.hidden_layers)])
-
-
-        #self.F1 = nn.ParameterList([nn.Parameter(torch.ones(1)) for _ in range(self.hidden_layers)])
-        # self.F2 = nn.ParameterList([nn.Parameter(torch.ones(1)) for _ in range(self.hidden_layers)])
-        # self.F3 = nn.ParameterList([nn.Parameter(torch.ones(1)) for _ in range(self.hidden_layers)])
-        # self.F4 = nn.ParameterList([nn.Parameter(torch.ones(1)) for _ in range(self.hidden_layers)])
-        # self.F5 = nn.ParameterList([nn.Parameter(torch.ones(1)) for _ in range(self.hidden_layers)])
-        # self.F6 = nn.ParameterList([nn.Parameter(torch.ones(1)) for _ in range(self.hidden_layers)])
-        # self.F7 = nn.ParameterList([nn.Parameter(torch.ones(1)) for _ in range(self.hidden_layers)])
-        # self.F8 = nn.ParameterList([nn.Parameter(torch.ones(1)) for _ in range(self.hidden_layers)])
-        # self.F9 = nn.ParameterList([nn.Parameter(torch.ones(1)) for _ in range(self.hidden_layers)])
 
         for m in self.modules():
             if isinstance(m, nn.Linear):

@@ -55,7 +55,7 @@ def train():
         weight_decay = 1e-3
 
         #CREATE DATASET
-        path_data = "../dataset/dataset_sarita/DRIR_CR1_VSA_1202RS_R.sofa"
+        path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
         data_handler = dt.DataHandler(path_data,M)
         data_handler.remove_points(2)
         points_sampled =len(data_handler.INPUT_SAMPLED)
