@@ -35,6 +35,22 @@ class DataTermLoss(nn.Module):
 
 
         return loss
+    
+class SH_Loss(nn.Module):
+    def __init__(self):
+        super(SH_Loss, self).__init__()
+    
+    def forward(self,predictions):
+        sh_model = model_estimation.sh
+        sh_gt = torch.tensor(gb.sh_lower,dtype=torch.cfloat)
+
+        loss = torch.mean(torch.abs(sh_model-sh_gt)**2,dim=1)
+        loss = torch.mean(loss)
+        
+        return loss
+    
+
+
 
 class HelmholtzLoss(nn.Module):
     """
@@ -159,11 +175,13 @@ class CombinedLoss(nn.Module):
             #self.bc_loss_fn = BCLoss()
 
         self.data_loss_fn = DataTermLoss()
+        self.sh_loss = SH_Loss()
 
     def forward(self, predictions, target, inputs, model_estimation):
         # Calcola le perdite individuali
-        data_loss = self.data_loss_fn(predictions, target)
-        losses = [data_loss]
+        #data_loss = self.data_loss_fn(predictions, target)
+        sh_loss = self.sh_loss(model_estimation)
+        losses = [sh_loss]
         loss_pde = 0
         loss_bc = 0
 
@@ -171,7 +189,7 @@ class CombinedLoss(nn.Module):
             pde_loss = self.pde_loss_fn(inputs, model_estimation)
             loss_pde = pde_loss
             #loss_bc = self.bc_loss_fn(inputs,model_estimation)
-            losses = [data_loss, loss_pde]
+            losses = [sh_loss, loss_pde]
             loss = gb.e_d*losses[0]+gb.e_f*losses[1]
         else:
             loss = gb.e_d*losses[0]
@@ -202,7 +220,7 @@ class CombinedLoss(nn.Module):
         # self.call_count = self.call_count+1
         # loss = torch.sum(torch.stack([new_lambdas[i] * losses[i] for i in range(len(losses))]))
 
-        return loss, data_loss, loss_pde, loss_bc
+        return loss, sh_loss, loss_pde, loss_bc
 
 def NMSE(normalized_output, predictions):
     """
