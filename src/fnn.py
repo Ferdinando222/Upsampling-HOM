@@ -91,8 +91,6 @@ class PINN(nn.Module):
             if isinstance(m, nn.Linear):
                 siren_uniform_(m.weight, mode='fan_in', c=c)
 
-        self.relu = nn.ReLU()
-
     def forward(self, x, y, z):
         """
         Forward pass of the PINN model.
@@ -108,27 +106,10 @@ class PINN(nn.Module):
 
         x = torch.stack([x, y, z], dim=1).to(gb.device)
 
-        # x_real = self.activation(self.w0*self.fc_in_real(x))
-        # x_img = self.activation(self.w0*self.fc_in_real(x)
-        # for i in range(self.layers):
-        #     hidden_layers = self.hidden_layers_real[i]
-        #     x_real = self.activation(self.w0*hidden_layers(x_real)
-        # for i in range(self.layers):
-        #     hidden_layers = self.hidden_layers_img[i]
-        #     x_img = self.activation(self.w0*hidden_layers(x_img))
-
         # x_real = self.fc_out_real(x_real)
         # x_img = self.fc_out_img(x_img)
 
         # SIREN
-
-        # # Forward pass for SIREN
-        # for layer in self.network_real.layers:
-        #      if isinstance(layer,Sine):
-        #          layer.w0 = self.w0
-        # for layer in self.network_imag.layers:
-        #      if isinstance(layer,Sine):
-        #          layer.w0 = self.w0
         x_real = self.network_real(x)
         x_imag = self.network_imag(x)
 
