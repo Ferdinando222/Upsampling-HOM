@@ -10,6 +10,7 @@ import loss_functions as lf
 import matplotlib.pyplot as plt
 import utils
 from sound_field_analysis import utils as ut
+from sound_field_analysis import process
 
 #IMPORT PATH
 path_saving = "../src/models/models_32_513_14.pth"
@@ -23,6 +24,7 @@ sarita_nmse = pd.read_csv(path_sarita_time).values
 M = 3
 data_handler = dt.DataHandler(path_data,M)
 data_handler.remove_points(2)
+data_handler.compute_sh(4)
 points_sampled =len(data_handler.INPUT_SAMPLED)
 gb.points_sampled = points_sampled
 print(points_sampled)
@@ -43,6 +45,7 @@ input_data = data_handler.X_data.to(gb.device)
 previsions_pinn = model.make_previsions(input_data)
 mean_nmse_fre,nmse_freq = lf.NMSE_freq(torch.tensor(data_handler.NORMALIZED_OUTPUT, dtype=torch.cfloat), previsions_pinn)
 previsions_pinn = previsions_pinn.cpu().detach().numpy()
+prevision_freq = previsions_pinn
 fft_result_full = np.concatenate((previsions_pinn, np.conj(np.fliplr(previsions_pinn[:, 1:]))), axis=1)
 previsions_time = np.real(np.fft.ifft(fft_result_full))
 
@@ -85,14 +88,14 @@ previsions_pinn = np.squeeze(previsions_pinn)
 utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn,index)
 
 #%%
-##Plot average NMSE for each channel
+# Plot average NMSE for each channel
 plt.figure(4)
 
 az = data_handler.azimuth
 col = data_handler.colatitude
 
 fig, (ax,ax1) = plt.subplots(1, 2, figsize=(12, 5))
-# Creare lo scatter plot
+# Create scatter plot
 
 sc = ax.scatter(az, col, c=10*np.log10(nmse_time.cpu()), cmap='coolwarm',vmax=1,vmin=-15)
 sc1 = ax1.scatter(az, col, c=10*np.log10(sarita_nmse), cmap='coolwarm',vmax=1,vmin=-15)
@@ -106,7 +109,6 @@ ax.scatter(microphone_positions[:,0],microphone_positions[:,1],facecolors='none'
 ax1.scatter(microphone_positions[:,0],microphone_positions[:,1],facecolors='none',
             color='black', marker='o', label='Microphones')
 
-# Impostare manualmente i segnaposti e le etichette sugli assi x e y
 azimuth_ticks = [0, np.pi / 2, np.pi, 2 * np.pi]
 colatitude_ticks = [0, np.pi / 2, np.pi]
 cbar = plt.colorbar(sc, label='NMSE (dB)')
@@ -121,6 +123,24 @@ ax.set_yticklabels(['0', 'π/2', 'π'])
 ax1.set_xticklabels(['0', 'π/2', 'π', '2π'])
 ax1.set_yticklabels(['0', 'π/2', 'π'])
 
+plt.show()
+
+# Compute nmse for sh armonics
+
+sh_ground = process.spatFT(prevision_freq,gb.spherical_grid,4)
+mse = np.abs(sh_ground - gb.sh_lower) ** 2
+mse = np.sum(mse,axis=1)
+norm = np.sum(np.abs(gb.sh_lower) ** 2,axis=1)
+# Calculate NMSE in dB
+nmse_all_sh = mse / norm
+nmse_all_sh_db = 10*np.log10(nmse_all_sh)
+nmse_sh = 10 * np.log10(np.mean(nmse_all_sh))
+
+plt.plot(nmse_all_sh_db)
+plt.xlabel('Indice')
+plt.ylabel('NMSE')
+plt.title('NMSE per ogni elemento')
+plt.grid(True)
 plt.show()
 
 

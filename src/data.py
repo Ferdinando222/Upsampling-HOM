@@ -312,3 +312,6 @@ class DataHandler:
         test_dataloader = DataLoader(val_dataset, batch_size=128, shuffle=False)
 
         return train_dataloader,test_dataloader
+    
+    def compute_sh(self,order):
+        gb.sh_lower = process.spatFT(self.NORMALIZED_OUTPUT,gb.spherical_grid,order)
