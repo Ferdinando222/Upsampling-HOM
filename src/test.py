@@ -137,16 +137,9 @@ nmse_all_sh_db = 10*np.log10(nmse_all_sh)
 nmse_sh = 10 * np.log10(np.mean(nmse_all_sh))
 
 plt.plot(nmse_all_sh_db)
-plt.xlabel('Indice')
+plt.xlabel('SH coefficients')
 plt.ylabel('NMSE')
-plt.title('NMSE per ogni elemento')
+plt.title('NMSE')
 plt.grid(True)
 plt.show()
 
-
-
-
-
-
-
-# %%

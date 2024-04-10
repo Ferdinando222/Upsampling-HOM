@@ -1,0 +1,7 @@
+numpy
+torch
+sound_field_analysis
+siren
+matplotlib
+pandas
+wandb
