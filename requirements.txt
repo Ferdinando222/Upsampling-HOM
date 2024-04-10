@@ -5,3 +5,4 @@ siren
 matplotlib
 pandas
 wandb
+scipy
