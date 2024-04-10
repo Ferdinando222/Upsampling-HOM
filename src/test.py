@@ -12,13 +12,13 @@ import utils
 from sound_field_analysis import utils as ut
 from sound_field_analysis import process
 
-#IMPORT PATH
+# IMPORT PATH
 path_saving = "../src/models/models_32_513_14.pth"
 path_sarita_freq = "../dataset/nmse_db_sarita_down16-1024.csv"
 path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
 path_sarita_time = "../dataset/nmse_CHANNEL_32_14-513.csv"
 
-#EXTRACT DATA
+# EXTRACT DATA
 sarita_nmse_freq = pd.read_csv(path_sarita_freq ).values
 sarita_nmse = pd.read_csv(path_sarita_time).values
 M = 3
@@ -31,7 +31,7 @@ print(points_sampled)
 train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 
-#CREATE MODEL
+# CREATE MODEL
 model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,2,5,5).to(gb.device)
 model.load_state_cust_dict(torch.load(path_saving))
 model.eval()
@@ -61,18 +61,18 @@ diff = np.abs(drir_ref.cpu().numpy()-previsions_time)
 print("NMSE TIME:",mean_nmse_time,std_dev)
 print("NMSE FREQ:",mean_nmse_fre)
 
-#Plot NMSE in time for each channel
+# Plot NMSE in time for each channel
 plt.figure(1)
 plt.plot(10*torch.log10(nmse_time.cpu()))
 plt.show()
 
-#Plot signal in time
+# Plot signal in time
 plt.figure(2)
 plt.plot(drir_ref[30,:])
 plt.plot(drir_prev[30,:],'--')
 plt.show()
 
-#Plot NMSE in frequency
+# Plot NMSE in frequency
 plt.figure(3)
 sarita_nmse_freq = np.array(sarita_nmse_freq)
 plt.plot(data_handler.frequencies,10*torch.log10(nmse_freq.cpu()),label="PINN")
@@ -80,7 +80,7 @@ plt.plot(data_handler.frequencies,10*np.log10(sarita_nmse_freq.T),label="SARITA"
 plt.legend()
 plt.show()
 
-##Plot Magnitude signal for each channel with fixed frequency
+## Plot Magnitude signal for each channel with fixed frequency
 index = 50
 pinn = True
 previsions_pinn = previsions_pinn[:,index]
