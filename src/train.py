@@ -45,14 +45,12 @@ def train():
         layers = 4
         batch_size = 128
         learning_rate = 0.001
-        data_weights = 1
-        bc_weights=0
         # gb.e_f = wandb.config.pde_weights
         c=5
         w0=1.0
         w0_initial = 5.0
         M = 3
-        weight_decay = 1e-3
+        # weight_decay = 1e-3
 
         #CREATE DATASET
         path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
@@ -68,19 +66,14 @@ def train():
         model = model.to(gb.device)
 
         #CREATE OPTIMIZER
-
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
         #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=4000, factor=0.1, verbose=True,min_lr=1e-5,cooldown=1500)
         inputs_not_sampled= data_handler.X_data
-
         
         #TRAINING
-
         pinn=True
         loss_comb = loss_functions.CombinedLoss(pinn)
 
-
-        print(pinn)
         if pinn:
             print("Start Training PINN")
             wandb.run.name = f"hidden_size_{hidden_size}_{points_sampled}_pinn"
@@ -88,17 +81,14 @@ def train():
             print("Start Training NO PINN")
             wandb.run.name = f"hidden_size_{hidden_size}_{points_sampled}_no_pinn"
 
-        # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 1000
+        patience = 200
         counter = 0
         
         for epoch in range(epochs):
             loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,loss_comb,
                                                                 points_sampled,pinn=pinn)
             val_loss = model.test_epoch(val_dataset)
-            #scheduler.step(val_loss)
-
             input_data = data_handler.X_data
             input_data = input_data.to(gb.device)
             previsions_pinn = model.make_previsions(input_data)
@@ -111,7 +101,7 @@ def train():
             drir_ref = data_handler.drir
             drir_ref = torch.tensor(drir_ref, dtype=torch.float32)
             drir_prev = torch.tensor(previsions_time, dtype=torch.float32)
-            mean_nmse_time, nmse_time,_ = lf.NMSE(drir_ref, drir_prev)
+            mean_nmse_time, _,_ = lf.NMSE(drir_ref, drir_prev)
 
             wandb.log({
                 "epoch":epoch,

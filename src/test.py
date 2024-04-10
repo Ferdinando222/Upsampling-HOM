@@ -32,11 +32,9 @@ train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 
 # CREATE MODEL
-model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,2,5,5).to(gb.device)
-model.load_state_cust_dict(torch.load(path_saving))
+model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,1,5,5).to(gb.device)
+model.load_state_dict(torch.load(path_saving))
 model.eval()
-
-
 
 ## PRINT RESULTS
 

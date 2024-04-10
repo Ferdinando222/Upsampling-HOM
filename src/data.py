@@ -1,5 +1,4 @@
 from sound_field_analysis import io, utils, gen,process
-import sound_field_analysis as sfa
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -7,11 +6,8 @@ import global_variables as gb
 import math
 from scipy import signal
 from torch.utils.data import TensorDataset
-
 import matplotlib.pyplot as plt
 
-
-process.spatFT
 
 class DataHandler:
     """
@@ -155,6 +151,7 @@ class DataHandler:
         #self.azimuth = grid.azimuth
         self.radius = grid.radius
 
+        gb.spherical_grid = process.SphericalGrid(self.azimuth,self.colatitude,self.radius)
         # Convert spherical coordinates to Cartesian coordinates
         self.x, self.y, self.z = utils.sph2cart((self.azimuth, self.colatitude, self.radius))
 
