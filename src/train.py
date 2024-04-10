@@ -20,7 +20,7 @@ sweep_configuration = {
         ##"learning_rate": {"values":[0.01,0.001,0.0001]},
         #"hidden_size":{"values":[512,256,128]},
         #"layer":{"max":6,"min":3},
-        "pde_weights":{"values":[1e-6,5e-6,1e-5]},
+        "pde_weights":{"max":1e-5,"min":1e-6},
         #"data_weights":{"max":2.0,"min":0.0001},
         #"bc_weights":{"max":5e-5,"min":1e-25},
         #"c":{"max":10,"min":1},
@@ -47,9 +47,10 @@ def train():
         learning_rate = 0.001
         data_weights = 1
         bc_weights=0
+        # gb.e_f = wandb.config.pde_weights
         c=5
-        w0=1
-        w0_initial = 5
+        w0=1.0
+        w0_initial = 5.0
         M = 3
         weight_decay = 1e-3
 
@@ -69,7 +70,7 @@ def train():
         #CREATE OPTIMIZER
 
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=4000, factor=0.1, verbose=True,min_lr=1e-5,cooldown=1500)
+        #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=4000, factor=0.1, verbose=True,min_lr=1e-5,cooldown=1500)
         inputs_not_sampled= data_handler.X_data
 
         
@@ -89,7 +90,7 @@ def train():
 
         # Set up early stopping parameters.
         best_val_loss = float('inf')
-        patience = 200
+        patience = 1000
         counter = 0
         
         for epoch in range(epochs):
@@ -144,7 +145,7 @@ def train():
         print('FINISHED')
     # Path to save model
     path_saving = f"../src/models/models_{len(inputs_not_sampled)}_{gb.output_dim}_{points_sampled}.pth"
-    torch.save(model.state_dict(), path_saving)
+    torch.save(best_model.state_dict(), path_saving)
 
 if __name__=="__main__":
     #TRAINING 

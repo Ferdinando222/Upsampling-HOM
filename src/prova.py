@@ -23,27 +23,19 @@ inputs_not_sampled= data_handler.X_data
 # %%
  #CREATE_NETWORK
 learning_rate = 0.001
-model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,1,5,5)
+model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,1.0,5.0,5)
 model = model.to(gb.device)
 
-## Point|  NN  | Reg
-## 4
+# %%
 
-##GROUNDTRUTH 89
-##   1  | 1-3  | 1e-3  --> -0.0011
-##   2  | 4-3  | 1e-3  --> -1
-##   3  | 16-3  | 1e-3  --> -2.82
-##   4  | 512-3 | 1e-3  --> -4.75
-##   5  | 512-5 | 1e-3  --> -5
-##   6  | 512-5 | 1e-3  --> -6.5
 #CREATE OPTIMIZER
 optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-4)
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=400, factor=0.1, verbose=True, min_lr=1e-6)
-pinn= False
+pinn= True
 loss_comb= loss_functions.CombinedLoss(pinn)
 
 best_val_loss = float('inf')
-patience =400
+patience =10
 counter = 0
 
 print(gb.device)
@@ -58,6 +50,7 @@ for epoch in range(10000):
     # Check for early stopping criterion
 
     if val_loss < best_val_loss:
+        print("Reached best val loss")
         best_val_loss = val_loss
         best_model = model
         counter = 0
@@ -86,7 +79,7 @@ sarita_nmse = pd.read_csv(percorso_file_csv).values
 # plot and NMSE of the model;
 input_data = data_handler.X_data
 input_data = input_data.to(gb.device)
-previsions_pinn = model.make_previsions(input_data)
+previsions_pinn = best_model.make_previsions(input_data)
 
 
 mean_nmse_fre,nmse_freq = lf.NMSE_freq(torch.tensor(data_handler.NORMALIZED_OUTPUT,dtype=torch.cfloat),previsions_pinn)
@@ -110,8 +103,8 @@ plt.show()
 #%%
 
 plt.figure(2)
-plt.plot(drir_ref[23,:])
-plt.plot(drir_prev[23,:],'--')
+plt.plot(drir_ref[30,:])
+plt.plot(drir_prev[30,:],'--')
 plt.show()
 
 plt.figure(3)
