@@ -37,7 +37,7 @@ model = model.to(gb.device)
 ##   5  | 512-5 | 1e-3  --> -5
 ##   6  | 512-5 | 1e-3  --> -6.5
 #CREATE OPTIMIZER
-optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-3)
+optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-4)
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=400, factor=0.1, verbose=True, min_lr=1e-6)
 pinn= False
 loss_comb= loss_functions.CombinedLoss(pinn)
@@ -127,9 +127,12 @@ input_data = data_handler.X_data
 input_data = input_data.to(gb.device)
 previsions_pinn = model.make_previsions(input_data)
 
+
 #%%
 index = 50
-previsions_pinn = previsions_pinn.cpu().detach().numpy()[:,index]
+previsions_pinn = previsions_pinn.cpu().detach().numpy()
+prevision_freq = previsions_pinn
+
 
 #%%
 previsions_pinn = np.squeeze(previsions_pinn)
@@ -193,4 +196,25 @@ plt.yticks(colatitude_ticks, ['0', 'π/2', 'π'])
 
 plt.show()
 
+# %%
+
+from sound_field_analysis import process
+
+data_handler.compute_sh(4)
+
+sh_ground = process.spatFT(prevision_freq,gb.spherical_grid,4)
+mse = np.abs(sh_ground - gb.sh_lower) ** 2
+mse = np.sum(mse,axis=1)
+norm = np.sum(np.abs(gb.sh_lower) ** 2,axis=1)
+# Calculate NMSE in dB
+nmse_all_sh = mse / norm
+nmse_all_sh_db = 10*np.log10(nmse_all_sh)
+nmse_sh = 10 * np.log10(np.mean(nmse_all_sh))
+
+plt.plot(nmse_all_sh_db)
+plt.xlabel('Indice')
+plt.ylabel('NMSE')
+plt.title('NMSE per ogni elemento')
+plt.grid(True)
+plt.show()
 # %%

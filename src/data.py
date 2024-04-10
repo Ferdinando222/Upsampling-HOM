@@ -151,6 +151,8 @@ class DataHandler:
         self.colatitude = np.mod(grid.azimuth,2*np.pi)
         self.azimuth = np.mod(grid.colatitude,2*np.pi)
         self.radius = grid.radius
+        
+        gb.spherical_grid = gen.SphericalGrid(self.azimuth,self.colatitude,self.radius)
 
         # Convert spherical coordinates to Cartesian coordinates
         self.x, self.y, self.z = utils.sph2cart((self.azimuth, self.colatitude, self.radius))
@@ -305,3 +307,7 @@ class DataHandler:
         test_dataloader = DataLoader(val_dataset, batch_size=128, shuffle=False)
 
         return train_dataloader,test_dataloader
+
+    def compute_sh(self,order):
+        gb.sh_lower = process.spatFT(self.NORMALIZED_OUTPUT,gb.spherical_grid,order)
+

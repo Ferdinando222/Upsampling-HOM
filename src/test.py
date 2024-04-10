@@ -10,11 +10,12 @@ import loss_functions as lf
 import matplotlib.pyplot as plt
 import utils
 from sound_field_analysis import utils as ut
+from sound_field_analysis import process
 
 #IMPORT PATH
 path_saving = "../src/models/models_32_513_14.pth"
 path_sarita_freq = "../dataset/nmse_db_sarita_down16-1024.csv"
-path_data = "../dataset/dataset_daga/Pos2_DRIR_LS_0.sofa"
+path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
 path_sarita_time = "../dataset/nmse_CHANNEL_32_14-513.csv"
 
 #EXTRACT DATA
@@ -23,6 +24,7 @@ sarita_nmse = pd.read_csv(path_sarita_time).values
 M = 3
 data_handler = dt.DataHandler(path_data,M)
 data_handler.remove_points(2)
+data_handler.compute_sh(4)
 points_sampled =len(data_handler.INPUT_SAMPLED)
 gb.points_sampled = points_sampled
 print(points_sampled)
@@ -44,6 +46,7 @@ input_data = input_data.to(gb.device)
 previsions_pinn = model.make_previsions(input_data)
 mean_nmse_fre,nmse_freq = lf.NMSE_freq(torch.tensor(data_handler.NORMALIZED_OUTPUT,dtype=torch.cfloat),previsions_pinn)
 previsions_pinn = previsions_pinn.cpu().detach().numpy()
+prevision_freq = previsions_pinn
 fft_result_full = np.concatenate((previsions_pinn, np.conj(np.fliplr(previsions_pinn[:, 1:]))), axis=1)
 previsions_time = np.real(np.fft.ifft(fft_result_full))
 
@@ -121,9 +124,22 @@ ax1.set_yticklabels(['0', 'π/2', 'π'])
 plt.show()
 
 
+# %%
+# SH NMSE
 
+sh_ground = process.spatFT(prevision_freq,gb.spherical_grid,4)
+mse = np.abs(sh_ground - gb.sh_lower) ** 2
+mse = np.sum(mse,axis=1)
+norm = np.sum(np.abs(gb.sh_lower) ** 2,axis=1)
+# Calculate NMSE in dB
+nmse_all_sh = mse / norm
+nmse_all_sh_db = 10*np.log10(nmse_all_sh)
+nmse_sh = 10 * np.log10(np.mean(nmse_all_sh))
 
-
-
-
+plt.plot(nmse_all_sh_db)
+plt.xlabel('Indice')
+plt.ylabel('NMSE')
+plt.title('NMSE per ogni elemento')
+plt.grid(True)
+plt.show()
 # %%
