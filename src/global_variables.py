@@ -5,7 +5,7 @@ from sound_field_analysis import io
 frequency = []
 input_dim = 3 
 output_dim = 513
-e_f,e_d,e_b = 1e-7,1,0.01
+e_f,e_d,e_b = 1e-9,1,0.0001
 spherical_grid = None
 spherical_grid_up = None
 points_sampled = 16

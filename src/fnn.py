@@ -22,10 +22,7 @@ class Sine(nn.Module):
 
         super(Sine, self).__init__()
         self.w0  = w0
-        # self.w0 = nn.Parameter(torch.tensor([w0]))
-        # self.w1 = nn.Parameter(torch.tensor(0.1))
-        # self.w2 = nn.Parameter(torch.tensor(0.01))
-        # self.w3 = nn.Parameter(torch.tensor(0.001))
+
         # self.w4 = nn.Parameter(torch.tensor(10.0))
         # self.w5 = nn.Parameter(torch.tensor(20.0))
         # self.w6 = nn.Parameter(torch.tensor(30.0))
@@ -34,7 +31,7 @@ class Sine(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         self._check_input(x)
         return torch.sin(self.w0 * x)
-    # +torch.sin(self.w1*x)+torch.sin(self.w2*x)+torch.sin(self.w3*x)\
+    #            torch.sin(self.w1*x)+torch.sin(self.w2*x)+torch.sin(self.w3*x)
     #             +0.01*torch.sin(self.w4*x)+0.01*torch.sin(self.w5*x)
 
     @staticmethod

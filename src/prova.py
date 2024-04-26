@@ -8,6 +8,7 @@ import torch
 import torch.optim as optim
 import loss_functions
 
+
 path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
 #DOWNSAMPLING FACTOR
 M = 3
@@ -35,7 +36,7 @@ pinn= True
 loss_comb= loss_functions.CombinedLoss(pinn)
 
 best_val_loss = float('inf')
-patience =10
+patience =200
 counter = 0
 
 print(gb.device)
@@ -45,7 +46,7 @@ for epoch in range(10000):
     #scheduler.step(val_loss)
 
 
-    print(f'Epoch [{epoch}/{100000}],Loss_data:{loss_data.item()},Loss_pde:{loss_pde.item()},Loss: {loss.item()},Val_Loss:{val_loss.item()}')
+    print(f'Epoch [{epoch}/{100000}],Loss_data:{loss_data.item()},Loss_bc:{loss_bc.item()},Loss_pde:{loss_pde.item()},Loss: {loss.item()},Val_Loss:{val_loss.item()}')
 
     # Check for early stopping criterion
 

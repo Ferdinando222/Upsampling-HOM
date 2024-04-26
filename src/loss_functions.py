@@ -4,10 +4,8 @@ import numpy as np
 import global_variables as gb
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
-from torch.utils.checkpoint import checkpoint
 
-# Import necessary libraries and modules
-EPS = 1e-8
+
 class DataTermLoss(nn.Module):
     """
     Custom loss module for data term loss calculation. Used for compute MSE for complex value.
@@ -62,41 +60,74 @@ class HelmholtzLoss(nn.Module):
         Returns:
             mse_pde_loss (torch.Tensor): The calculated loss for the Helmholtz equation.
         """
-
         x = inputs[:, 0].to(gb.device)
         y = inputs[:, 1].to(gb.device)
         z = inputs[:, 2].to(gb.device)
 
+        
         x = x.requires_grad_(True)
         y = y.requires_grad_(True)
         z = z.requires_grad_(True)
 
-        u = model_estimation(x, y, z).to(gb.device)#Shape u -> [1202,512]
+        u = model_estimation(x, y, z).to(gb.device)
         u_i_real = u.real
         u_i_imag = u.imag
         pde_res = torch.empty(u.shape[0],u.shape[1],dtype=torch.cfloat).to(gb.device)
 
-        for i in range(u.shape[1]):
-            # Calculate partial derivatives of u with respect to x, y, and z
-            d_x_real,d_y_real,d_z_real = torch.autograd.grad(u_i_real[:,i],(x,y,z),create_graph=True,grad_outputs=(torch.ones_like(u_i_real[:,i])))
-            d_x_imag,d_y_imag,d_z_imag = torch.autograd.grad(u_i_imag[:,i],(x,y,z),create_graph=True,grad_outputs=(torch.ones_like(u_i_imag[:,i])))
+        du_real = torch.autograd.grad(u_i_real,(x,y,z),create_graph=True,grad_outputs=(torch.ones_like(u_i_real)))[0]
+        du_imag = torch.autograd.grad(u_i_imag,(x,y,z),create_graph=True,grad_outputs=(torch.ones_like(u_i_imag)))[0]
+
+        ddu_real = torch.autograd.grad(du_real, (x,y,z),retain_graph=True,grad_outputs=(torch.ones_like(du_real)))[0]
+        ddu_imag = torch.autograd.grad(du_imag, (x,y,z),retain_graph=True,grad_outputs=(torch.ones_like(du_imag)))[0]
+
+        ddu_x_real = ddu_real[:][0]
+        ddu_y_real = ddu_real[:][1]
+        ddu_z_real = ddu_real[:][2]
+
+        ddu_x_imag = ddu_imag[:][0]
+        ddu_y_imag = ddu_imag[:][1]
+        ddu_z_imag = ddu_imag[:][2]
 
 
-            # Calculate the Laplacian of u
-            laplace = torch.autograd.grad(d_x_real, x,retain_graph=True,grad_outputs=(torch.ones_like(d_x_real)))[0]+ \
-                           torch.autograd.grad(d_y_real, y,retain_graph=True,grad_outputs=(torch.ones_like(d_y_real)))[0] + \
-                           torch.autograd.grad(d_z_real, z,retain_graph=True,grad_outputs=(torch.ones_like(d_z_real)))[0]+\
-                        1j*torch.autograd.grad(d_x_imag, x, retain_graph=True,grad_outputs=(torch.ones_like(d_x_imag)))[0] + \
-                        1j*torch.autograd.grad(d_y_imag, y, retain_graph=True,grad_outputs=(torch.ones_like(d_y_imag)))[0] + \
-                        1j*torch.autograd.grad(d_z_imag, z, retain_graph=True,grad_outputs=(torch.ones_like(d_z_imag)))[0]
+        laplacian = ddu_x_real+ddu_y_real+ddu_z_real+1j*(ddu_y_imag+ddu_x_imag+ddu_z_imag)
 
-            laplace = laplace.to(gb.device)
-            k = torch.tensor((self.omega[i]/self.c),dtype=torch.cfloat).to(gb.device)
+        k = torch.tensor((self.omega/self.c),dtype=torch.cfloat).to(gb.device)
 
-            pde_res[:,i] = laplace + k**2 *u[:,i]
+        pde_res = laplacian.view(-1,1)+k**2*u
 
-        norm_pde = 1/(u.shape[1])*torch.norm(pde_res,p=2,dim=1)
-        loss = torch.mean(norm_pde**2)
+        loss = torch.mean(torch.abs(pde_res)**2)
+
+        # x = inputs[:, 0].to(gb.device)
+        # y = inputs[:, 1].to(gb.device)
+        # z = inputs[:, 2].to(gb.device)
+
+
+        # u = model_estimation(x, y, z).to(gb.device)#Shape u -> [1202,512]
+        # u_i_real = u.real
+        # u_i_imag = u.imag
+        # pde_res = torch.empty(u.shape[0],u.shape[1],dtype=torch.cfloat).to(gb.device)
+
+        # for i in range(u.shape[1]):
+        #     # Calculate partial derivatives of u with respect to x, y, and z
+        #     d_x_real,d_y_real,d_z_real = torch.autograd.grad(u_i_real[:,i],(x,y,z),create_graph=True,grad_outputs=(torch.ones_like(u_i_real[:,i])))
+        #     d_x_imag,d_y_imag,d_z_imag = torch.autograd.grad(u_i_imag[:,i],(x,y,z),create_graph=True,grad_outputs=(torch.ones_like(u_i_imag[:,i])))
+
+
+        #     # Calculate the Laplacian of u
+        #     laplace = torch.autograd.grad(d_x_real, x,retain_graph=True,grad_outputs=(torch.ones_like(d_x_real)))[0]+ \
+        #                    torch.autograd.grad(d_y_real, y,retain_graph=True,grad_outputs=(torch.ones_like(d_y_real)))[0] + \
+        #                    torch.autograd.grad(d_z_real, z,retain_graph=True,grad_outputs=(torch.ones_like(d_z_real)))[0]+\
+        #                 1j*torch.autograd.grad(d_x_imag, x, retain_graph=True,grad_outputs=(torch.ones_like(d_x_imag)))[0] + \
+        #                 1j*torch.autograd.grad(d_y_imag, y, retain_graph=True,grad_outputs=(torch.ones_like(d_y_imag)))[0] + \
+        #                 1j*torch.autograd.grad(d_z_imag, z, retain_graph=True,grad_outputs=(torch.ones_like(d_z_imag)))[0]
+
+        #     laplace = laplace.to(gb.device)
+        #     k = torch.tensor((self.omega[i]/self.c),dtype=torch.cfloat).to(gb.device)
+
+        #     pde_res[:,i] = laplace + k**2 *u[:,i]
+
+        # norm_pde = 1/(u.shape[1])*torch.norm(pde_res,p=2,dim=1)
+        # loss = torch.mean(norm_pde**2)
         return loss
 
 class BCLoss(nn.Module):
