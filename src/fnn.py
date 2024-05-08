@@ -6,6 +6,7 @@ from siren import SIREN
 from siren.init import siren_uniform_
 import torch.nn.init as init
 
+
 class Sine(nn.Module):
     def __init__(self, w0: float = 1.0):
         """Sine activation function with w0 scaling support.
@@ -21,24 +22,25 @@ class Sine(nn.Module):
         """
 
         super(Sine, self).__init__()
-        self.w0  = w0
-
-        # self.w4 = nn.Parameter(torch.tensor(10.0))
-        # self.w5 = nn.Parameter(torch.tensor(20.0))
-        # self.w6 = nn.Parameter(torch.tensor(30.0))
+        self.w0  = nn.Parameter(torch.tensor(w0))
+        self.w1  = nn.Parameter(torch.tensor(1.0))
+        self.w2  = nn.Parameter(torch.tensor(2.0))
+        self.w3  = nn.Parameter(torch.tensor(3.0))
+        self.a1  = nn.Parameter(torch.tensor(1.0))
+        self.a2  = nn.Parameter(torch.tensor(1.0))
+        self.a3  = nn.Parameter(torch.tensor(1.0))
         
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         self._check_input(x)
-        return torch.sin(self.w0 * x)
-    #            torch.sin(self.w1*x)+torch.sin(self.w2*x)+torch.sin(self.w3*x)
-    #             +0.01*torch.sin(self.w4*x)+0.01*torch.sin(self.w5*x)
+        return torch.sin(self.w0 * x)+self.a1*torch.sin(self.w1*x)+self.a2*torch.sin(self.w2*x)+self.a3*torch.sin(self.w3*x)
 
     @staticmethod
     def _check_input(x):
         if not isinstance(x, torch.Tensor):
             raise TypeError(
                 'input to forward() must be torch.xTensor')
+        
 class PINN(nn.Module):
     """
     Physics-Informed Neural Network (PINN) class.
@@ -59,7 +61,7 @@ class PINN(nn.Module):
         network: network Siren
     """
 
-    def __init__(self, input_size, output_size, hidden_size, num_layers=5,w0=1,w0_init=30,c=6):
+    def __init__(self, input_size, output_size, hidden_size, num_layers=5,w0=1,w0_init=30,c=6,initializer='siren'):
         super(PINN, self).__init__()
 
         layers = [hidden_size]*num_layers
@@ -84,9 +86,22 @@ class PINN(nn.Module):
         self.layers_imag.append(nn.Linear(layers[-1], output_size, bias=True))
         self.network_imag = nn.Sequential(*self.layers_imag)
 
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                siren_uniform_(m.weight, mode='fan_in', c=c)
+        if initializer == 'siren':
+            for m in self.network_real.modules():
+                if isinstance(m, nn.Linear):
+                    siren_uniform_(m.weight, mode='fan_in', c=c)
+            for m in self.network_imag.modules():
+                if isinstance(m, nn.Linear):
+                    siren_uniform_(m.weight, mode='fan_in', c=c)
+
+        elif initializer == 'xavier':
+            for m in self.network_real.modules():
+                if isinstance(m, nn.Linear):
+                    init.xavier_uniform_(m.weight)
+            for m in self.network_imag.modules():
+                if isinstance(m, nn.Linear):
+                    init.xavier_uniform_(m.weight)
+        
 
     def forward(self, x, y, z):
         """
@@ -102,9 +117,6 @@ class PINN(nn.Module):
         """
 
         x = torch.stack([x, y, z], dim=1).to(gb.device)
-
-        # x_real = self.fc_out_real(x_real)
-        # x_img = self.fc_out_img(x_img)
 
         # SIREN
         x_real = self.network_real(x)
@@ -145,6 +157,7 @@ class PINN(nn.Module):
                 layer_name = f'{network_name}.network.{i}'
                 state_dict.pop(f'{layer_name}.weight', None)
                 state_dict.pop(f'{layer_name}.bias', None)
+    
 
     def train_epoch(self, loader, inputs_not_sampled, optimizer, loss_comb,points_sampled, pinn=False):
         """
@@ -186,6 +199,7 @@ class PINN(nn.Module):
             cum_loss.append(loss)
             optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
             optimizer.step()
 
         # Convert cum_loss to a tensor

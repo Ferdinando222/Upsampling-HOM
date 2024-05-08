@@ -99,13 +99,14 @@ class DataHandler:
         # Read the SOFA file
         DRIR = io.read_SOFA_file(sofa_file_path)
         drir = DRIR.signal.signal
+        self.configuration = DRIR.configuration
 
         # Control if the drir signal has the following shape [signal,mic]
         if(len(drir) != len(DRIR.grid.azimuth)):
             drir = drir.T
 
         grid = DRIR.grid
-        fs = int(DRIR.signal.fs/M)
+        self.fs = int(DRIR.signal.fs/M)
         NFFT = len(drir[0,:])
         self.NFFT_down = int(np.round(NFFT/M))
         print(self.NFFT_down)
@@ -133,7 +134,7 @@ class DataHandler:
         n = len(self.OUTPUT_DATA[0,:])
 
         print("Shape FFT:",len(self.OUTPUT_DATA),len(self.OUTPUT_DATA[0,:]))
-        self.frequencies = np.fft.fftfreq(n, 1.0 / fs)
+        self.frequencies = np.fft.fftfreq(n, 1.0 / self.fs)
         self.frequencies= self.frequencies[:int(np.ceil(n/2))]
         gb.frequency = self.frequencies
 
@@ -209,15 +210,10 @@ class DataHandler:
             points_sampled (int): Number of sampled points to keep.
         """
 
-        def distance(point1, point2, radius=1.0):
-            # Convert spherical coordinates to radians
-            phi1, theta1 = point1
-            phi2, theta2 = point2
+        def distance(point1, point2):
+            # Calcola la distanza euclidea tra due punti in uno spazio tridimensionale
+            return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
 
-            # Compute spherical distance
-            d = math.acos(np.sin(phi1) * np.sin(phi2) + np.cos(phi1) * np.cos(phi2) * np.cos(theta1 - theta2)) * radius
-
-            return d
 
         mic = np.column_stack((self.azimuth, self.colatitude))
 
@@ -239,11 +235,12 @@ class DataHandler:
 
             matching_indices.append(number)
         
+        
         matching_indices = np.array(matching_indices)
         print(matching_indices)
         azimuth = self.azimuth[matching_indices]
         col = self.colatitude[matching_indices]
-
+        gb.spherical_grid_und = process.SphericalGrid(azimuth,col,self.grid_under.radius*self.radius[0])
         # Conversione in radianti per il plot
         azimuth_rad = self.azimuth
         colatitude_rad = self.colatitude
@@ -305,8 +302,8 @@ class DataHandler:
         train_dataset = TensorDataset(torch.tensor(self.X_sampled), torch.tensor(self.Y_sampled))
         val_dataset = TensorDataset(torch.tensor(self.X_not_sampled), torch.tensor(self.Y_not_sampled))
 
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
-        test_dataloader = DataLoader(val_dataset, batch_size=128, shuffle=False)
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        test_dataloader = DataLoader(val_dataset, batch_size=128, shuffle=True)
 
         return train_dataloader,test_dataloader
     
