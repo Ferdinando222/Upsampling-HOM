@@ -8,7 +8,8 @@ import wandb
 import torch
 import global_variables as gb
 import loss_functions
-
+from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import StepLR
 
 # Define sweep config
 sweep_configuration = {
@@ -44,18 +45,18 @@ def train():
         hidden_size = 512
         layers = 4
         batch_size = 128
-        learning_rate = 0.001
+        learning_rate = 0.0001
         # gb.e_f = wandb.config.pde_weights
         c=5
         w0=1.0
         w0_initial = 5.0
         M = 3
-        # weight_decay = 1e-3
+        weight_decay =1e-3
 
         #CREATE DATASET
         path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
         data_handler = dt.DataHandler(path_data,M)
-        data_handler.remove_points(2)
+        data_handler.remove_points(2,"fliege")
         points_sampled =len(data_handler.INPUT_SAMPLED)
         gb.points_sampled = points_sampled
         train_dataset,val_dataset = data_handler.data_loader(batch_size)
@@ -66,12 +67,12 @@ def train():
         model = model.to(gb.device)
 
         #CREATE OPTIMIZER
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-        #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=4000, factor=0.1, verbose=True,min_lr=1e-5,cooldown=1500)
+        optimizer = optim.Adam(model.parameters(), eps=1e-8,lr=learning_rate,weight_decay=weight_decay)
+        scheduler = CosineAnnealingLR(optimizer,T_max=10000,eta_min=0)
         inputs_not_sampled= data_handler.X_data
         
         #TRAINING
-        pinn=True
+        pinn = True
         loss_comb = loss_functions.CombinedLoss(pinn)
 
         if pinn:
@@ -82,13 +83,14 @@ def train():
             wandb.run.name = f"hidden_size_{hidden_size}_{points_sampled}_no_pinn"
 
         best_val_loss = float('inf')
-        patience = 200
         counter = 0
+      
         
         for epoch in range(epochs):
             loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,loss_comb,
                                                                 points_sampled,pinn=pinn)
             val_loss = model.test_epoch(val_dataset)
+            scheduler.step()
             input_data = data_handler.X_data
             input_data = input_data.to(gb.device)
             previsions_pinn = model.make_previsions(input_data)
@@ -128,13 +130,13 @@ def train():
             else:
                 counter += 1
 
-            if counter >= patience:
-                print(f"Early stopping after {epoch + 1} epochs.")
-                counter=0
-                break
+            #if counter >= patience:
+            #    print(f"Early stopping after {epoch + 1} epochs.")
+            #    counter=0
+            #    break
         print('FINISHED')
     # Path to save model
-    path_saving = f"../src/models/models_{len(inputs_not_sampled)}_{gb.output_dim}_{points_sampled}.pth"
+    path_saving = f"../src/models/models_{len(inputs_not_sampled)}_{pinn}_rowdy_{gb.output_dim}_{points_sampled}.pth"
     torch.save(best_model.state_dict(), path_saving)
 
 if __name__=="__main__":

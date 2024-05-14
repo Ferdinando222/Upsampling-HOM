@@ -7,6 +7,8 @@ import math
 from scipy import signal
 from torch.utils.data import TensorDataset
 import matplotlib.pyplot as plt
+import scipy.io
+from scipy.spatial.transform import Rotation as R
 
 
 class DataHandler:
@@ -202,7 +204,7 @@ class DataHandler:
 
         return self.X_sampled, self.X_not_sampled, self.Y_sampled,self.Y_not_sampled
 
-    def remove_points(self, order):
+    def remove_points(self, order,type="lebedev"):
         """
         Remove points from the sampled data.
 
@@ -217,7 +219,30 @@ class DataHandler:
 
         mic = np.column_stack((self.azimuth, self.colatitude))
 
-        self.grid_under = gen.lebedev(order)
+        if type == "lebedev":
+            self.grid_under = gen.lebedev(order)
+        elif type == "fliege":
+            # Carica i dati dal file .mat
+            data = scipy.io.loadmat('../dataset/grid_extra/fliegeMaierNodes_1_30.mat')
+
+            fliegeNodes = data['fliegeNodes']
+            N = order  # Imposta N a un valore desiderato
+            grid_cart = fliegeNodes[0][N]
+            grid_data = np.zeros((len(grid_cart), 3))
+
+            # Converti coordinate cartesiane in coordinate sferiche
+            grid_data[:,0],grid_data[:,1],grid_data[:,2]= utils.cart2sph((grid_cart[:,0],grid_cart[:,1],grid_cart[:,2]))
+
+            grid_data[:,0]= np.mod(grid_data[:, 0] + 2*np.pi, 2*np.pi) # Azimuth
+
+            # Calcola i pesi normalizzati
+            weights = grid_cart[:,3]
+            grid_data[:, 2] = weights / np.sum(weights)
+
+            radius = np.ones(len(grid_data[:,0]))
+
+            self.grid_under = gen.SphericalGrid(grid_data[:,0],grid_data[:,1],radius = radius,weight = grid_data[:,2])
+    
         az_und = self.grid_under.azimuth
         col_und = self.grid_under.colatitude
         mic_under = np.column_stack((az_und, col_und))
@@ -229,7 +254,7 @@ class DataHandler:
             min_distance = np.infty
             for i,item1 in enumerate(mic):
                 dist = distance(item,item1)
-                if dist < min_distance:
+                if dist < min_distance and i not in matching_indices:
                     min_distance = dist
                     number = i
 

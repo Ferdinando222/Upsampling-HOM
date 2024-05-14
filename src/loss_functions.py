@@ -29,13 +29,8 @@ class DataTermLoss(nn.Module):
             loss (torch.Tensor): The calculated loss.
         """
 
-        diff_real = predictions.real - target.real
-        diff_imag = predictions.imag - target.imag
-
-        mse = torch.mean(diff_real**2 + diff_imag**2,dim=1)
-        
-        # Calcolo della media della MSE
-        loss = torch.mean(mse)
+        mse = nn.MSELoss()
+        loss = mse(predictions.real, target.real) + mse(predictions.imag, target.imag)
 
 
 

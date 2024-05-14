@@ -8,7 +8,7 @@ import torch.nn.init as init
 
 
 class Sine(nn.Module):
-    def __init__(self, w0: float = 1.0):
+    def __init__(self, w0: float = 1.0,rowdy=True):
         """Sine activation function with w0 scaling support.
 
         Example:
@@ -22,18 +22,36 @@ class Sine(nn.Module):
         """
 
         super(Sine, self).__init__()
-        self.w0  = nn.Parameter(torch.tensor(w0))
-        self.w1  = nn.Parameter(torch.tensor(1.0))
-        self.w2  = nn.Parameter(torch.tensor(2.0))
-        self.w3  = nn.Parameter(torch.tensor(3.0))
-        self.a1  = nn.Parameter(torch.tensor(1.0))
-        self.a2  = nn.Parameter(torch.tensor(1.0))
-        self.a3  = nn.Parameter(torch.tensor(1.0))
+        self.rowdy=rowdy
+        if rowdy:
+            self.w0 = nn.Parameter(torch.tensor(w0))
+            self.w1 = nn.Parameter(torch.tensor(0.1))
+            self.w2 = nn.Parameter(torch.tensor(0.1))
+            self.w3 = nn.Parameter(torch.tensor(0.1))
+            self.w4 = nn.Parameter(torch.tensor(0.1))
+            self.w5 = nn.Parameter(torch.tensor(0.1))
+            self.w6 = nn.Parameter(torch.tensor(0.1))
+            self.a1 = nn.Parameter(torch.tensor(0.1))
+            self.a2 = nn.Parameter(torch.tensor(0.1))
+            self.a3 = nn.Parameter(torch.tensor(0.1))
+            self.a4 = nn.Parameter(torch.tensor(0.1))
+            self.a5 = nn.Parameter(torch.tensor(0.1))
+            self.a6 = nn.Parameter(torch.tensor(0.1))
         
+        else:
+            self.w0 = w0
+
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         self._check_input(x)
-        return torch.sin(self.w0 * x)+self.a1*torch.sin(self.w1*x)+self.a2*torch.sin(self.w2*x)+self.a3*torch.sin(self.w3*x)
+        if self.rowdy:
+            return torch.sin(self.w0 * x)  \
+                +10*self.a1*torch.sin(10*self.w1*x)+10*self.a2*torch.sin(20*self.w2*x) \
+                +10*self.a3*torch.sin(30*self.w3*x)+10*self.a4*torch.sin(40*self.w4*x) \
+                +10*self.a5*torch.sin(50*self.w5 * x)+10*self.a6*torch.sin(60*self.w6*x)
+        else:
+            return torch.sin(self.w0 * x)
 
     @staticmethod
     def _check_input(x):
@@ -61,27 +79,27 @@ class PINN(nn.Module):
         network: network Siren
     """
 
-    def __init__(self, input_size, output_size, hidden_size, num_layers=5,w0=1,w0_init=30,c=6,initializer='siren'):
+    def __init__(self, input_size, output_size, hidden_size, num_layers=5,w0=1,w0_init=30,c=6,initializer='siren',rowdy=True):
         super(PINN, self).__init__()
 
         layers = [hidden_size]*num_layers
         self.w0 = w0
         self.w0_init= w0_init
 
-        self.layers_real = [nn.Linear(input_size, layers[0], bias=True), Sine(w0=self.w0_init)]
+        self.layers_real = [nn.Linear(input_size, layers[0], bias=True), Sine(w0=self.w0_init,rowdy=rowdy)]
 
         for index in range(len(layers) - 1):
             self.layers_real.extend([
-                nn.Linear(layers[index], layers[index + 1], bias=True), Sine(w0=self.w0)])
+                nn.Linear(layers[index], layers[index + 1], bias=True), Sine(w0=self.w0,rowdy=rowdy)])
 
         self.layers_real.append(nn.Linear(layers[-1], output_size, bias=True))
         self.network_real = nn.Sequential(*self.layers_real)
 
-        self.layers_imag = [nn.Linear(input_size, layers[0], bias=True), Sine(w0=self.w0_init)]
+        self.layers_imag = [nn.Linear(input_size, layers[0], bias=True), Sine(w0=self.w0_init,rowdy=rowdy)]
 
         for index in range(len(layers) - 1):
             self.layers_imag.extend([
-                nn.Linear(layers[index], layers[index + 1], bias=True), Sine(w0=self.w0)])
+                nn.Linear(layers[index], layers[index + 1], bias=True), Sine(w0=self.w0,rowdy=rowdy)])
 
         self.layers_imag.append(nn.Linear(layers[-1], output_size, bias=True))
         self.network_imag = nn.Sequential(*self.layers_imag)

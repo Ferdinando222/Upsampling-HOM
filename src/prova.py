@@ -7,14 +7,14 @@ import fnn
 import torch
 import torch.optim as optim
 import loss_functions
-
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
 #DOWNSAMPLING FACTOR
 M = 3
 NFFT = int(np.round(17000/M))
 data_handler = dt.DataHandler(path_data,M)
-data_handler.remove_points(2)
+data_handler.remove_points(4,"fliege")
 points_sampled =len(data_handler.INPUT_SAMPLED)
 gb.points_sampled = points_sampled
 print(points_sampled)
@@ -23,16 +23,19 @@ inputs_not_sampled= data_handler.X_data
 
 # %%
  #CREATE_NETWORK
-learning_rate = 0.001
-model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,1.0,5.0,5)
+learning_rate = 0.0001
+model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,1.0,5.0,5,rowdy=True)
 model = model.to(gb.device)
+
+total_params = sum(p.numel() for p in model.parameters())
+print(f"Number of parameters: {total_params}")
 
 # %%
 
 #CREATE OPTIMIZER
-optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay=1e-4)
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=400, factor=0.1, verbose=True, min_lr=1e-6)
-pinn= True
+optimizer = optim.Adam(model.parameters(), lr=learning_rate,weight_decay =1e-3)
+scheduler = CosineAnnealingLR(optimizer,T_max=10000,eta_min=0)
+pinn= False
 loss_comb= loss_functions.CombinedLoss(pinn)
 
 best_val_loss = float('inf')
@@ -43,10 +46,10 @@ print(gb.device)
 for epoch in range(10000):
     loss,loss_data,loss_pde,loss_bc = model.train_epoch(train_dataset,inputs_not_sampled,optimizer,loss_comb,points_sampled,pinn=pinn)
     val_loss = model.test_epoch(val_dataset)
-    #scheduler.step(val_loss)
+    scheduler.step()
 
 
-    print(f'Epoch [{epoch}/{100000}],Loss_data:{loss_data.item()},Loss_bc:{loss_bc.item()},Loss_pde:{loss_pde.item()},Loss: {loss.item()},Val_Loss:{val_loss.item()}')
+    print(f'Epoch [{epoch}/{100000}],Loss_data:{loss_data.item()},Loss_bc:{loss_bc.item()},Loss_pde:{gb.e_f*loss_pde.item()},Loss: {loss.item()},Val_Loss:{val_loss.item()}')
 
     # Check for early stopping criterion
 
@@ -59,10 +62,10 @@ for epoch in range(10000):
         counter += 1
 #
 
-    if counter >= patience:
-        print(f"Early stopping after {epoch + 1} epochs.")
-        counter = 0
-        break
+    # if counter >= patience:
+    #     print(f"Early stopping after {epoch + 1} epochs.")
+    #     counter = 0
+    #     break
 
         
 nmse = model.test(data_handler)
@@ -71,7 +74,7 @@ nmse = model.test(data_handler)
 import utils
 import pandas as pd
 import numpy as np
-percorso_file_csv = "../dataset/nmse_db_sarita_down16-1024.csv"
+percorso_file_csv = "../dataset/results_sarita/nmse_freq_sarita_16.csv"
 
 # Leggi il file CSV
 sarita_nmse = pd.read_csv(percorso_file_csv).values

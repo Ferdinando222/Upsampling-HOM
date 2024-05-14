@@ -8,34 +8,110 @@ import data as dt
 import loss_functions as lf
 import matplotlib.pyplot as plt
 import utils
+import binaural
 from sound_field_analysis import utils as ut
-from sound_field_analysis import process
+from sound_field_analysis import process,gen
+
+
+
+#------------------------- SIMPLE GUI FOR USER --------------------------------#
+
+options_points = ["4", "9", "16", "25"]
+
+print("For which points do you want to test the model?")
+
+print("Options:")
+for i, option in enumerate(options_points, start=1):
+    print(f"{i}) {option}")
+
+while True:
+    index = input("Please specify the index of the points you want to test: ")
+
+    # Validate the input
+    try:
+        index_points = int(index)
+        if 1 <= index_points <= len(options_points):
+            points = options_points[index_points- 1]
+            print("Chosen points:", points)
+            break  # Exit the loop if the input is valid
+        else:
+            print("Invalid index. Please enter a number between 1 and", len(options_points))
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+
+
+options_model = ["Siren","Siren+Pde","Siren+Pde+Rowdy"]
+
+print("Which model?")
+
+print("Options:")
+for i, option in enumerate(options_model, start=1):
+    print(f"{i}) {option}")
+
+while True:
+    index = input("Please specify the index of the model you want to test: ")
+
+    # Validate the input
+    try:
+        index_model = int(index)
+        if 1 <= index_model <= len(options_model):
+            models = options_model[index_model - 1]
+            print("Chosen points:", points)
+            break  # Exit the loop if the input is valid
+        else:
+            print("Invalid index. Please enter a number between 1 and", len(options_model))
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+
+if(models == options_model[0]):
+    models = "False"
+elif(models == options_model[1]):
+    models = "True"
+elif(models == options_model[2]):
+    models="True_rowdy"
+
+#####################################################################################################
+
+#---------------------------------- IMPORTING PATH AND EXTRACT DATA --------------------------------#
+
+#####################################################################################################
 
 # IMPORT PATH
-path_saving = "../src/models/models_32_513_14.pth"
-path_sarita_freq = "../dataset/nmse_db_sarita_down16-1024.csv"
+path_saving = f"../src/models/models_32_{models}_513_{points}.pth"
+path_sarita_freq = f"../dataset/results_sarita/nmse_freq_sarita_{points}.csv"
 path_data = "../dataset/dataset_daga/Pos1_DRIR_LS_0.sofa"
-path_sarita_time = "../dataset/nmse_CHANNEL_32_14-513.csv"
+path_sarita_time = f"../dataset/results_sarita/nmse_time_sarita_{points}.csv"
+path_signal_sarita =f"../dataset/results_sarita/signal_time_{points}.csv"
 
 # EXTRACT DATA
 sarita_nmse_freq = pd.read_csv(path_sarita_freq ).values
 sarita_nmse = pd.read_csv(path_sarita_time).values
+signal_sarita = pd.read_csv(path_signal_sarita).values
 M = 3
 data_handler = dt.DataHandler(path_data,M)
-data_handler.remove_points(2)
+data_handler.remove_points(index_points,"fliege")
 data_handler.compute_sh(4)
 points_sampled =len(data_handler.INPUT_SAMPLED)
-gb.points_sampled = points_sampled
+gb.points_sampled = points
 print(points_sampled)
 train_dataset,val_dataset = data_handler.data_loader(128)
 inputs_not_sampled= data_handler.X_data
 
 # CREATE MODEL
-model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,1,5,5).to(gb.device)
+if models == "True_rowdy":
+    rowdy=True
+else:
+    rowdy =False
+model = fnn.PINN(gb.input_dim,gb.output_dim,512,4,1.0,5.0,5,rowdy=rowdy).to(gb.device)
 model.load_state_dict(torch.load(path_saving))
 model.eval()
 
-#-------------------------------------------------- PRINT RESULTS--------------------------------------------------------
+#########################################################################################################################
+
+#-------------------------------------------------- PRINT RESULTS-------------------------------------------------------#
+
+#########################################################################################################################
+
 
 # Make previsions
 input_data = data_handler.X_data.to(gb.device)
@@ -63,8 +139,13 @@ plt.show()
 
 # Plot signal in time
 plt.figure(2)
-plt.plot(drir_ref[30,:])
-plt.plot(drir_prev[30,:],'--')
+plt.plot(drir_ref[30,:],label='Groundtruth')
+plt.plot(drir_prev[30,:],'--',label='PINN')
+plt.legend()
+plt.show()
+plt.plot(drir_ref[30,:],label='Groundtruth')
+plt.plot(signal_sarita.T,'--',label='SARITA')
+plt.legend()
 plt.show()
 
 # Plot NMSE in frequency
@@ -82,7 +163,6 @@ previsions_pinn = previsions_pinn[:,index]
 previsions_pinn = np.squeeze(previsions_pinn)
 utils.plot_model(data_handler,previsions_pinn,points_sampled,pinn,index)
 
-#%%
 # Plot average NMSE for each channel
 plt.figure(4)
 az = data_handler.azimuth
@@ -131,3 +211,51 @@ plt.title('NMSE')
 plt.grid(True)
 plt.show()
 
+
+import csv
+#######################################################################################
+#---------------------------------------SAVE RESULTS----------------------------------#
+#######################################################################################
+
+with open('../results/mean_nmse_time.txt', 'r') as file:
+    table = csv.reader(file, delimiter='|')
+    results = list(table)
+
+
+results[index_points][index_model+1] = str(mean_nmse_time.numpy())
+
+with open('../results/mean_nmse_time.txt', 'w', newline='') as file:
+    writer = csv.writer(file, delimiter='|')
+    writer.writerows(results)
+
+with open('../results/mean_nmse_time.txt', 'r') as file:
+    table = csv.reader(file, delimiter='|')
+    results = list(table)
+
+
+results[index_points][index_model+1] = str(mean_nmse_time.numpy())
+
+
+def create_file(freq, nmse, nome_file):
+    with open(nome_file, 'w') as file:
+        file.write('Frequency:\n')
+        for f in freq:
+            file.write(str(f) + ' ')
+        
+        file.write('\n\n')  
+
+        file.write('Vaue NMSE:\n')
+        for n in nmse:
+            file.write(str(n) + ' ')
+
+
+
+nome_file = f'../results/nmse_freq_{models}_{points}.txt'
+
+create_file(data_handler.frequencies,nmse_freq.cpu().numpy(), nome_file)
+print(f"File '{nome_file}' created!")
+
+#%%
+## BINAURAL SIGNAL
+brir = binaural.compute_binaural_signal(sh_ground,data_handler.NFFT_down,4,data_handler.configuration,True)
+# %%
