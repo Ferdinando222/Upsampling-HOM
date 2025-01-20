@@ -1,4 +1,5 @@
 # Upsampling-HOM
+This is the official repository for the paper titled 'A Physics-Informed Neural Network-Based Approach for the Spatial Upsampling of Spherical Microphone Arrays'.
 
 # CREATE ENVIRONMENT
 ### Create a conda o venv environment using the requirements.txt
