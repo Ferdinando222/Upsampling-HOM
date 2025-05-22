@@ -147,5 +147,5 @@ If you use the code from this repository or find our work relevant to your resea
   doi={10.1109/document/10694489}
 }
 ```
-(Please update the author names, conference details, and other fields with the official information when it becomes available.)
+
 
