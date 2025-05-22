@@ -133,13 +133,16 @@ This project is licensed under the terms of the `LICENSE` file.
 If you use the code from this repository or find our work relevant to your research, please consider citing the associated paper:
 
 ```bibtex
-@INPROCEEDINGS{AuthorYearUpsampling,
-  author={FirstAuthor, A. N. and SecondAuthor, B. O. and CoAuthor, C. P.},
-  booktitle={Proceedings of the IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, 
+@INPROCEEDINGS{10694489,
+  author={Miotello, Federico and Terminiello, Ferdinando and Pezzoli, Mirco and Bernardini, Alberto and Antonacci, Fabio and Sarti, Augusto},
+  booktitle={2024 18th International Workshop on Acoustic Signal Enhancement (IWAENC)}, 
   title={A Physics-Informed Neural Network-Based Approach for the Spatial Upsampling of Spherical Microphone Arrays}, 
   year={2024},
   volume={},
   number={},
+  pages={215-219},
+  keywords={Array signal processing;Conferences;Neural networks;Parallel processing;Linear programming;Microphone arrays;Machine listening;Spatial resolution;Testing;Convergence;physics-informed neural network;spherical microphone array;space-time audio signal processing},
+  doi={10.1109/IWAENC61483.2024.10694489}}
   pages={},
   doi={10.1109/document/10694489}
 }
